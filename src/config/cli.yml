@@ -1,0 +1,42 @@
+name: steelseries-engine
+version: "1.0"
+author: Andrea Coronese <sixpounder@protonmail.com>
+about: Control your Steelseries devices through the command line
+args:
+    - timeout:
+        long: timeout
+        short: t
+        help: The maximum time to wait (in milliseconds) for each response from the device
+    - verbose:
+        long: verbose
+        short: v
+        multiple: true
+        help: Sets the level of verbosity
+subcommands:
+    - describe:
+        version: "1.0"
+        about: Displays a list of a single device capabilities and configurable properties
+        args:
+            - device:
+                index: 1
+                required: true
+                help: Specifies a device to inspect
+    - list:
+        version: "1.0"
+        about: Lists supported devices connected to the host
+    - change:
+        about: Changes configuration for a device
+        args:
+            - device:
+                short: d
+                long: device
+                value_name: DEVICE_ID
+                help: Specifies a device to manipulate. If not specified, the first device from the 'list' command output is assumed
+            - PROPERTY:
+                index: 1
+                required: true
+                help: Specifies what property to manipulate (eg. a led color). Supported properties varies per device, use the 'describe' command to inspect a single device for supported properties
+            - VALUE:
+                index: 2
+                required: true
+                help: The property value to set
