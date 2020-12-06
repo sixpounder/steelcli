@@ -1,5 +1,5 @@
 [package]
-name = "steelseries-engine"
+name = "steelseries-cli"
 version = "0.1.0"
 authors = ["sixpounder"]
 edition = "2018"
