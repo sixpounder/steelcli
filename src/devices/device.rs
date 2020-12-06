@@ -53,7 +53,7 @@ impl DevicePool {
     pub fn new() -> Self {
         let mut devices = vec![];
 
-        let arctis5: Box<dyn SteelseriesDevice> = Box::new(arctis::Arctis5Headphones {});
+        let arctis5: Box<dyn SteelseriesDevice> = Box::new(arctis::Arctis5Headphones::new());
         devices.push(arctis5);
 
         Self { devices }
