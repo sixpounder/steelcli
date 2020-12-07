@@ -1,13 +1,13 @@
 use rusb::{Context, DeviceHandle};
 
-use super::{DeviceCapability, SteelseriesDevice};
+use super::{DeviceCapability, Payload, SteelseriesDevice};
 
 const STEELSERIES_VENDOR_ID: u16 = 0x1038;
 const ARCTIS_5_PID: u16 = 0x12aa;
 
 pub enum HeadphoneSide {
     Left,
-    Right
+    Right,
 }
 
 pub struct Arctis5Headphones {
@@ -24,45 +24,54 @@ impl Arctis5Headphones {
             capabilities: vec![
                 DeviceCapability::from(("lhc", "Left headphone color")),
                 DeviceCapability::from(("rhc", "Right headphone color")),
-                DeviceCapability::from(("hc", "Both headphones color"))
-            ]
+                DeviceCapability::from(("hc", "Both headphones color")),
+            ],
         }
     }
 
     pub fn set_headphone_color(&self, side: HeadphoneSide, color: (u8, u8, u8)) {
         let (mut _device, mut handle) = self.open_device().expect("Failed to open device");
-        let iface = match side { HeadphoneSide::Left => 5, HeadphoneSide::Right => 1 };
+        let iface = match side {
+            HeadphoneSide::Left => 5,
+            HeadphoneSide::Right => 1,
+        };
 
-        handle.set_auto_detach_kernel_driver(true).expect("Could not detach kernel driver");
-        let payloads: Vec<Vec<u8>> = vec![
-            vec![
-                0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0xff, 0xff, 0x32, 0xc8, 0xc8, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ]
-        ];
+        handle
+            .set_auto_detach_kernel_driver(true)
+            .expect("Could not detach kernel driver");
+
+        let payloads: Vec<Payload> = vec![Payload {
+            request_type: rusb::request_type(
+                rusb::Direction::Out,
+                rusb::RequestType::Class,
+                rusb::Recipient::Interface,
+            ),
+            request: 9,
+            value: 0x0206,
+            index: iface.into(),
+            buf: vec![
+                0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0xff, 0xff, 0x32, 0xc8, 0xc8,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: std::time::Duration::from_secs(1),
+            debug_message: None,
+        }];
 
         // println!("Payload size: {}", payload.len());
 
         match handle.claim_interface(iface) {
             Ok(()) => {
-                match handle.write_control(
-                    rusb::request_type(
-                        rusb::Direction::Out,
-                        rusb::RequestType::Class,
-                        rusb::Recipient::Interface,
-                    ),
-                    9,
-                    0x0206,
-                    iface.into(),
-                    &payloads[0],
-                    std::time::Duration::from_secs(1),
-                ) {
-                    Ok(size) => {
-                        println!("{} bytes transferred", size);
-                    }
-                    Err(e) => {
-                        // return Err(e);
+                for msg in payloads.iter() {
+                    match handle.write_control(msg.request_type, msg.request, msg.value, msg.index, &msg.buf, msg.timeout) {
+                        Ok(size) => {
+                            if let Some(m) = msg.debug_message {
+                                println!("{}", m);
+                            }
+                        }
+                        Err(e) => {
+                            // return Err(e);
+                        }
                     }
                 }
 

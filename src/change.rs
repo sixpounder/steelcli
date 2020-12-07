@@ -4,10 +4,6 @@ use rusb::{Context, Result};
 pub fn change(vendor_id: u16, product_id: u16, prop: &str, value: &str) -> Result<()> {
     let pool = DevicePool::new();
 
-    // let mut context = Context::new()?;
-    // let (mut _device, mut handle) =
-    //     open_device(&mut context, vendor_id, product_id).expect("Failed to open device");
-
     let (mut _device, mut handle) = pool
         .find_one(vendor_id, product_id)
         .unwrap()

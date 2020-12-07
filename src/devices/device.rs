@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use rusb::{Context, Device, DeviceHandle, UsbContext};
 
 use super::arctis;
@@ -80,4 +82,14 @@ impl DevicePool {
 
         ret
     }
+}
+
+pub struct Payload<'a> {
+    pub request_type: u8,
+    pub request: u8,
+    pub index: u16,
+    pub value: u16,
+    pub debug_message: Option<&'a str>,
+    pub buf: Vec<u8>,
+    pub timeout: Duration
 }
