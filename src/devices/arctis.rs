@@ -5,6 +5,11 @@ use super::{DeviceCapability, SteelseriesDevice};
 const STEELSERIES_VENDOR_ID: u16 = 0x1038;
 const ARCTIS_5_PID: u16 = 0x12aa;
 
+pub enum HeadphoneSide {
+    Left,
+    Right
+}
+
 pub struct Arctis5Headphones {
     vendor_id: u16,
     product_id: u16,
@@ -24,22 +29,9 @@ impl Arctis5Headphones {
         }
     }
 
-    pub fn set_left_color(&self, color: (u8, u8, u8)) {
-        self.set_headphone_color(1, color);
-    }
-
-    pub fn set_right_color(&self, color: (u8, u8, u8)) {
-        self.set_headphone_color(0, color);
-    }
-
-    pub fn set_both_color(&self, color: (u8, u8, u8)) {
-        self.set_left_color(color);
-        self.set_right_color(color);
-    }
-
-    fn set_headphone_color(&self, side: u8, color: (u8, u8, u8)) {
+    pub fn set_headphone_color(&self, side: HeadphoneSide, color: (u8, u8, u8)) {
         let (mut _device, mut handle) = self.open_device().expect("Failed to open device");
-        let iface = 5;
+        let iface = match side { HeadphoneSide::Left => 5, HeadphoneSide::Right => 1 };
 
         handle.set_auto_detach_kernel_driver(true).expect("Could not detach kernel driver");
         let payloads: Vec<Vec<u8>> = vec![
