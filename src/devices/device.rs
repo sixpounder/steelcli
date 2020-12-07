@@ -1,10 +1,19 @@
-use rusb::{Context, UsbContext, Device, DeviceHandle};
+use rusb::{Context, Device, DeviceHandle, UsbContext};
 
 use super::arctis;
 
-pub struct DeviceCapability {
-    pub label: String,
-    pub description: String,
+pub struct DeviceCapability<'a> {
+    pub label: &'a str,
+    pub description: &'a str,
+}
+
+impl<'a> From<(&'a str, &'a str)> for DeviceCapability<'a> {
+    fn from(tuple: (&'a str, &'a str)) -> Self {
+        DeviceCapability {
+            label: tuple.0,
+            description: tuple.1,
+        }
+    }
 }
 
 pub trait SteelseriesDevice {
@@ -30,7 +39,9 @@ pub trait SteelseriesDevice {
                 Err(_) => continue,
             };
 
-            if device_desc.vendor_id() == self.get_vendor_id() && device_desc.product_id() == self.get_product_id() {
+            if device_desc.vendor_id() == self.get_vendor_id()
+                && device_desc.product_id() == self.get_product_id()
+            {
                 match device.open() {
                     Ok(handle) => return Some((device, handle)),
                     Err(e) => {
