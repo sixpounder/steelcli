@@ -29,7 +29,27 @@ impl Arctis5Headphones {
         }
     }
 
+    // Payload {
+    //     request_type: request_type_out,
+    //     request: 9,
+    //     value: 0x0206,
+    //     index: iface.into(),
+    //     buf: vec![
+    //         0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, color.0, color.1, color.2, 0xff, 0x32, 0xc8,
+    //         0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //     ],
+    //     timeout: std::time::Duration::from_secs(1),
+    //     debug_message: None,
+    // },
+
     pub fn set_headphone_color(&self, side: HeadphoneSide, color: (u8, u8, u8)) {
+        let request_type_out: u8 = rusb::request_type(
+            rusb::Direction::Out,
+            rusb::RequestType::Class,
+            rusb::Recipient::Interface,
+        );
+
         let (mut _device, mut handle) = self.open_device().expect("Failed to open device");
         let iface = match side {
             HeadphoneSide::Left => 5,
@@ -40,31 +60,104 @@ impl Arctis5Headphones {
             .set_auto_detach_kernel_driver(true)
             .expect("Could not detach kernel driver");
 
-        let payloads: Vec<Payload> = vec![Payload {
-            request_type: rusb::request_type(
-                rusb::Direction::Out,
-                rusb::RequestType::Class,
-                rusb::Recipient::Interface,
-            ),
-            request: 9,
-            value: 0x0206,
-            index: iface.into(),
-            buf: vec![
-                0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0xff, 0xff, 0x32, 0xc8, 0xc8,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ],
-            timeout: std::time::Duration::from_secs(1),
-            debug_message: None,
-        }];
+        let payloads: Vec<Payload> = vec![
+            Payload {
+                request_type: request_type_out,
+                request: 9,
+                value: 0x0206,
+                index: 5,
+                buf: vec![
+                    0x06, 0x8a, 0x42, 0x00, 0x20, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                ],
+                timeout: std::time::Duration::from_secs(1),
+                debug_message: None,
+            },
+            Payload {
+                request_type: request_type_out,
+                request: 9,
+                value: 0x0206,
+                index: 5,
+                buf: vec![
+                    0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                ],
+                timeout: std::time::Duration::from_secs(1),
+                debug_message: None,
+            },
+        ];
 
         // println!("Payload size: {}", payload.len());
 
         match handle.claim_interface(iface) {
             Ok(()) => {
                 for msg in payloads.iter() {
-                    match handle.write_control(msg.request_type, msg.request, msg.value, msg.index, &msg.buf, msg.timeout) {
+                    match handle.write_control(
+                        msg.request_type,
+                        msg.request,
+                        msg.value,
+                        msg.index,
+                        &msg.buf,
+                        msg.timeout,
+                    ) {
                         Ok(size) => {
+                            println!("-> {} bytes", size);
+                            if let Some(m) = msg.debug_message {
+                                println!("{}", m);
+                            }
+                            // let mut tmp_out = vec![];
+                            // handle.read_control(request_type_out, 9, 0x0206, iface.into(), &mut tmp_out, std::time::Duration::from_secs(1)).unwrap();
+                        }
+                        Err(e) => {
+                            // return Err(e);
+                        }
+                    }
+                }
+
+                handle.write_interrupt(4, &vec![], std::time::Duration::from_millis(50)).expect("Interrupt error");
+
+                let payloads = vec![
+                    Payload {
+                        request_type: request_type_out,
+                        request: 9,
+                        value: 0x0206,
+                        index: iface.into(),
+                        buf: vec![
+                            0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, color.0, color.1, color.2, 0xff, 0x32, 0xc8,
+                            0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        ],
+                        timeout: std::time::Duration::from_secs(1),
+                        debug_message: None,
+                    },
+                    Payload {
+                        request_type: request_type_out,
+                        request: 9,
+                        value: 0x0206,
+                        index: iface.into(),
+                        buf: vec![
+                            0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        ],
+                        timeout: std::time::Duration::from_secs(1),
+                        debug_message: None,
+                    },
+                ];
+
+                for msg in payloads.iter() {
+                    match handle.write_control(
+                        msg.request_type,
+                        msg.request,
+                        msg.value,
+                        msg.index,
+                        &msg.buf,
+                        msg.timeout,
+                    ) {
+                        Ok(size) => {
+                            println!("-> {} bytes", size);
                             if let Some(m) = msg.debug_message {
                                 println!("{}", m);
                             }
@@ -74,6 +167,8 @@ impl Arctis5Headphones {
                         }
                     }
                 }
+
+                handle.write_interrupt(4, &vec![], std::time::Duration::from_millis(50)).expect("Interrupt error");
 
                 handle.release_interface(iface).unwrap();
             }
@@ -98,7 +193,9 @@ impl SteelseriesDevice for Arctis5Headphones {
     }
 
     fn change_property(&self, property: &str, value: &str) -> bool {
-        todo!()
+        self.set_headphone_color(HeadphoneSide::Left, (255, 0, 0));
+
+        true
     }
 
     fn get_vendor_id(&self) -> u16 {

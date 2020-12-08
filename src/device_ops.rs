@@ -53,6 +53,7 @@ pub struct Endpoint {
     iface: u8,
     setting: u8,
     address: u8,
+    number: u8,
 }
 
 /// Returns all readable endpoints for given usb device
@@ -75,6 +76,7 @@ pub fn find_readable_endpoints<T: UsbContext>(device: &mut Device<T>) -> rusb::R
                         iface: interface_desc.interface_number(),
                         setting: interface_desc.setting_number(),
                         address: endpoint_desc.address(),
+                        number: endpoint_desc.number(),
                     });
                 }
             }
