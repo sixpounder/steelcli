@@ -29,26 +29,15 @@ impl Arctis5Headphones {
         }
     }
 
-    // Payload {
-    //     request_type: request_type_out,
-    //     request: 9,
-    //     value: 0x0206,
-    //     index: iface.into(),
-    //     buf: vec![
-    //         0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, color.0, color.1, color.2, 0xff, 0x32, 0xc8,
-    //         0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //     ],
-    //     timeout: std::time::Duration::from_secs(1),
-    //     debug_message: None,
-    // },
-
     pub fn set_headphone_color(&self, side: HeadphoneSide, color: (u8, u8, u8)) {
         let request_type_out: u8 = rusb::request_type(
             rusb::Direction::Out,
             rusb::RequestType::Class,
             rusb::Recipient::Interface,
         );
+
+        let max_control_wait = std::time::Duration::from_millis(500);
+        let max_interrupt_wait = std::time::Duration::from_millis(50);
 
         let (mut _device, mut handle) = self.open_device().expect("Failed to open device");
         let iface = match side {
@@ -71,7 +60,7 @@ impl Arctis5Headphones {
                     0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 ],
-                timeout: std::time::Duration::from_secs(1),
+                timeout: max_control_wait,
                 debug_message: None,
             },
             Payload {
@@ -84,7 +73,7 @@ impl Arctis5Headphones {
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 ],
-                timeout: std::time::Duration::from_secs(1),
+                timeout: max_control_wait,
                 debug_message: None,
             },
         ];
@@ -116,7 +105,7 @@ impl Arctis5Headphones {
                     }
                 }
 
-                handle.write_interrupt(4, &vec![], std::time::Duration::from_millis(50)).expect("Interrupt error");
+                handle.write_interrupt(4, &vec![], max_interrupt_wait).expect("Interrupt error");
 
                 let payloads = vec![
                     Payload {
@@ -129,7 +118,7 @@ impl Arctis5Headphones {
                             0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                         ],
-                        timeout: std::time::Duration::from_secs(1),
+                        timeout: max_control_wait,
                         debug_message: None,
                     },
                     Payload {
@@ -142,7 +131,7 @@ impl Arctis5Headphones {
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                         ],
-                        timeout: std::time::Duration::from_secs(1),
+                        timeout: max_control_wait,
                         debug_message: None,
                     },
                 ];
@@ -168,7 +157,7 @@ impl Arctis5Headphones {
                     }
                 }
 
-                handle.write_interrupt(4, &vec![], std::time::Duration::from_millis(50)).expect("Interrupt error");
+                handle.write_interrupt(4, &vec![], max_interrupt_wait).expect("Interrupt error");
 
                 handle.release_interface(iface).unwrap();
             }
