@@ -93,3 +93,8 @@ pub struct Payload<'a> {
     pub buf: Vec<u8>,
     pub timeout: Duration
 }
+
+pub enum DeviceOperation<'a> {
+    Interrupt(u8, &'a [u8]),
+    Control(Payload<'a>)
+}

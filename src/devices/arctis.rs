@@ -1,6 +1,8 @@
+use std::slice::Iter;
+
 use rusb::{Context, DeviceHandle};
 
-use super::{DeviceCapability, Payload, SteelseriesDevice};
+use super::{DeviceCapability, DeviceOperation, Payload, SteelseriesDevice};
 
 const STEELSERIES_VENDOR_ID: u16 = 0x1038;
 const ARCTIS_5_PID: u16 = 0x12aa;
@@ -30,134 +32,47 @@ impl Arctis5Headphones {
     }
 
     pub fn set_headphone_color(&self, side: HeadphoneSide, color: (u8, u8, u8)) {
-        let request_type_out: u8 = rusb::request_type(
-            rusb::Direction::Out,
-            rusb::RequestType::Class,
-            rusb::Recipient::Interface,
-        );
-
-        let max_control_wait = std::time::Duration::from_millis(500);
-        let max_interrupt_wait = std::time::Duration::from_millis(50);
-
         let (mut _device, mut handle) = self.open_device().expect("Failed to open device");
         let iface = match side {
             HeadphoneSide::Left => 5,
-            HeadphoneSide::Right => 1,
+            HeadphoneSide::Right => 5,
         };
 
         handle
             .set_auto_detach_kernel_driver(true)
             .expect("Could not detach kernel driver");
 
-        let payloads: Vec<Payload> = vec![
-            Payload {
-                request_type: request_type_out,
-                request: 9,
-                value: 0x0206,
-                index: 5,
-                buf: vec![
-                    0x06, 0x8a, 0x42, 0x00, 0x20, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                ],
-                timeout: max_control_wait,
-                debug_message: None,
-            },
-            Payload {
-                request_type: request_type_out,
-                request: 9,
-                value: 0x0206,
-                index: 5,
-                buf: vec![
-                    0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                ],
-                timeout: max_control_wait,
-                debug_message: None,
-            },
-        ];
-
         // println!("Payload size: {}", payload.len());
 
         match handle.claim_interface(iface) {
             Ok(()) => {
-                for msg in payloads.iter() {
-                    match handle.write_control(
-                        msg.request_type,
-                        msg.request,
-                        msg.value,
-                        msg.index,
-                        &msg.buf,
-                        msg.timeout,
-                    ) {
-                        Ok(size) => {
-                            println!("-> {} bytes", size);
-                            if let Some(m) = msg.debug_message {
-                                println!("{}", m);
-                            }
-                            // let mut tmp_out = vec![];
-                            // handle.read_control(request_type_out, 9, 0x0206, iface.into(), &mut tmp_out, std::time::Duration::from_secs(1)).unwrap();
-                        }
-                        Err(e) => {
-                            // return Err(e);
-                        }
-                    }
-                }
-
-                handle.write_interrupt(4, &vec![], max_interrupt_wait).expect("Interrupt error");
-
-                let payloads = vec![
-                    Payload {
-                        request_type: request_type_out,
-                        request: 9,
-                        value: 0x0206,
-                        index: iface.into(),
-                        buf: vec![
-                            0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, color.0, color.1, color.2, 0xff, 0x32, 0xc8,
-                            0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                        ],
-                        timeout: max_control_wait,
-                        debug_message: None,
-                    },
-                    Payload {
-                        request_type: request_type_out,
-                        request: 9,
-                        value: 0x0206,
-                        index: iface.into(),
-                        buf: vec![
-                            0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                        ],
-                        timeout: max_control_wait,
-                        debug_message: None,
-                    },
-                ];
-
-                for msg in payloads.iter() {
-                    match handle.write_control(
-                        msg.request_type,
-                        msg.request,
-                        msg.value,
-                        msg.index,
-                        &msg.buf,
-                        msg.timeout,
-                    ) {
-                        Ok(size) => {
-                            println!("-> {} bytes", size);
-                            if let Some(m) = msg.debug_message {
-                                println!("{}", m);
+                for op in generate_color_change_operations(color).iter() {
+                    match op {
+                        DeviceOperation::Control(payload) => {
+                            match handle.write_control(
+                                payload.request_type,
+                                payload.request,
+                                payload.value,
+                                payload.index,
+                                &payload.buf,
+                                payload.timeout,
+                            ) {
+                                Ok(size) => {
+                                    println!("-> {} bytes", size);
+                                    if let Some(m) = payload.debug_message {
+                                        println!("{}", m);
+                                    }
+                                    // let mut tmp_out = vec![];
+                                    // handle.read_control(request_type_out, 9, 0x0206, w_index, &mut tmp_out, std::time::Duration::from_secs(1)).unwrap();
+                                }
+                                Err(e) => {
+                                    println!("Error: {}", e);
+                                }
                             }
                         }
-                        Err(e) => {
-                            // return Err(e);
-                        }
+                        DeviceOperation::Interrupt(_, _) => {}
                     }
                 }
-
-                handle.write_interrupt(4, &vec![], max_interrupt_wait).expect("Interrupt error");
 
                 handle.release_interface(iface).unwrap();
             }
@@ -194,4 +109,362 @@ impl SteelseriesDevice for Arctis5Headphones {
     fn get_product_id(&self) -> u16 {
         self.product_id
     }
+}
+
+fn generate_color_change_operations<'a>(color: (u8, u8, u8)) -> Vec<DeviceOperation<'a>> {
+    let request_type_out: u8 = rusb::request_type(
+        rusb::Direction::Out,
+        rusb::RequestType::Class,
+        rusb::Recipient::Interface,
+    );
+
+    let max_control_wait = std::time::Duration::from_millis(500);
+    let max_interrupt_wait = std::time::Duration::from_millis(50);
+
+    let w_index = 5;
+
+    let mut payloads: Vec<Payload<'a>> = vec![
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: 5,
+            buf: vec![
+                0x06, 0x8a, 0x42, 0x00, 0x20, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc8,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: 5,
+            buf: vec![
+                0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, color.0, color.1, color.2, 0xff, 0x32,
+                0xc8, 0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x08, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0xc8,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x8a, 0x42, 0x00, 0x20, 0x60, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc8,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x8a, 0x42, 0x00, 0x20, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc8,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc8,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+        Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc8,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        },
+    ];
+
+    let mut last_v_byte = 0x08;
+
+    for i in 0..16 {
+        payloads.push(Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        });
+
+        last_v_byte += 8;
+
+        payloads.push(Payload {
+            request_type: request_type_out,
+            request: 9,
+            value: 0x0206,
+            index: w_index,
+            buf: vec![
+                0x06,
+                0x8a,
+                0x42,
+                0x00,
+                0x20,
+                0x41,
+                last_v_byte,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0xc8,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ],
+            timeout: max_control_wait,
+            debug_message: None,
+        });
+    }
+
+    payloads.push(Payload {
+        request_type: request_type_out,
+        request: 9,
+        value: 0x0206,
+        index: w_index,
+        buf: vec![
+            0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ],
+        timeout: max_control_wait,
+        debug_message: None,
+    });
+
+    payloads.push(Payload {
+        request_type: request_type_out,
+        request: 9,
+        value: 0x0206,
+        index: w_index,
+        buf: vec![
+            0x06, 0x8a, 0x42, 0x00, 0x20, 0x61, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc8,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ],
+        timeout: max_control_wait,
+        debug_message: None,
+    });
+
+    payloads.push(Payload {
+        request_type: request_type_out,
+        request: 9,
+        value: 0x0206,
+        index: w_index,
+        buf: vec![
+            0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ],
+        timeout: max_control_wait,
+        debug_message: None,
+    });
+
+    payloads.push(Payload {
+        request_type: request_type_out,
+        request: 9,
+        value: 0x0206,
+        index: w_index,
+        buf: vec![
+            0x04, 0x40, 0x01, 0x11, 0x54, 0x9b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ],
+        timeout: max_control_wait,
+        debug_message: None,
+    });
+
+    payloads.push(Payload {
+        request_type: request_type_out,
+        request: 9,
+        value: 0x0206,
+        index: w_index,
+        buf: vec![
+            0x06, 0x81, 0x43, 0x01, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ],
+        timeout: max_control_wait,
+        debug_message: None,
+    });
+
+    payloads.push(Payload {
+        request_type: request_type_out,
+        request: 9,
+        value: 0x0206,
+        index: w_index,
+        buf: vec![
+            0x06, 0x8a, 0x42, 0x00, 0x20, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ],
+        timeout: max_control_wait,
+        debug_message: None,
+    });
+
+    payloads.push(Payload {
+        request_type: request_type_out,
+        request: 9,
+        value: 0x0206,
+        index: w_index,
+        buf: vec![
+            0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ],
+        timeout: max_control_wait,
+        debug_message: None,
+    });
+
+    let mut ops: Vec<DeviceOperation<'a>> = vec![];
+    for p in payloads {
+        ops.push(DeviceOperation::Control(p));
+    }
+
+    ops
 }
