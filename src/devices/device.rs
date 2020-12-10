@@ -95,6 +95,6 @@ pub struct Payload<'a> {
 }
 
 pub enum DeviceOperation<'a> {
-    Interrupt(u8, &'a [u8]),
+    Interrupt(u8, Vec<u8>),
     Control(Payload<'a>)
 }
