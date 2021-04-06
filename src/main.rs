@@ -6,6 +6,7 @@ mod device_ops;
 mod list;
 mod describe;
 mod devices;
+mod core;
 
 use crate::change::change;
 use crate::list::list;

@@ -1,5 +1,3 @@
-mod device;
-mod arctis;
+mod arctis_five;
 
-pub use arctis::*;
-pub use device::*;
+pub use arctis_five::*;

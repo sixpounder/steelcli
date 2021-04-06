@@ -1,16 +1,9 @@
-use std::slice::Iter;
+use rusb::Error;
 
-use rusb::{Context, DeviceHandle};
-
-use super::{DeviceCapability, DeviceOperation, Payload, SteelseriesDevice};
+use crate::core::{Color, DeviceCapability, DeviceOperation, Payload, Side, SteelseriesDevice};
 
 const STEELSERIES_VENDOR_ID: u16 = 0x1038;
 const ARCTIS_5_PID: u16 = 0x12aa;
-
-pub enum HeadphoneSide {
-    Left,
-    Right,
-}
 
 pub struct Arctis5Headphones {
     vendor_id: u16,
@@ -31,11 +24,11 @@ impl Arctis5Headphones {
         }
     }
 
-    pub fn set_headphone_color(&self, side: HeadphoneSide, color: (u8, u8, u8)) {
+    pub fn set_headphone_color(&self, side: Side, color: Color) -> Result<(), Error> {
         let (mut _device, mut handle) = self.open_device().expect("Failed to open device");
         let iface = match side {
-            HeadphoneSide::Left => 5,
-            HeadphoneSide::Right => 5,
+            Side::Left => 5,
+            Side::Right => 5,
         };
 
         handle
@@ -46,7 +39,7 @@ impl Arctis5Headphones {
 
         match handle.claim_interface(iface) {
             Ok(()) => {
-                for op in generate_color_change_operations(color).iter() {
+                for op in generate_color_change_operations(color.into()).iter() {
                     match op {
                         DeviceOperation::Control(payload) => {
                             match handle.write_control(
@@ -59,11 +52,9 @@ impl Arctis5Headphones {
                             ) {
                                 Ok(size) => {
                                     println!("-> {} bytes", size);
-                                    if let Some(m) = payload.debug_message {
+                                    if let Some(m) = payload.debug_message.as_ref() {
                                         println!("{}", m);
                                     }
-                                    // let mut tmp_out = vec![];
-                                    // handle.read_control(request_type_out, 9, 0x0206, w_index, &mut tmp_out, std::time::Duration::from_secs(1)).unwrap();
                                 }
                                 Err(e) => {
                                     println!("Error: {}", e);
@@ -77,9 +68,11 @@ impl Arctis5Headphones {
                 }
 
                 handle.release_interface(iface).unwrap();
+                Ok(())
             }
             Err(e) => {
                 println!("Could not claim interface: {}", e);
+                Err(e)
             }
         }
     }
@@ -90,7 +83,7 @@ impl SteelseriesDevice for Arctis5Headphones {
         self.product_id == product_id && self.vendor_id == vendor_id
     }
 
-    fn enumerate_capabilities(&self) -> std::slice::Iter<super::DeviceCapability> {
+    fn enumerate_capabilities(&self) -> std::slice::Iter<DeviceCapability> {
         self.capabilities.iter()
     }
 
@@ -98,10 +91,22 @@ impl SteelseriesDevice for Arctis5Headphones {
         "Arctis 5"
     }
 
-    fn change_property(&self, property: &str, value: &str) -> bool {
-        self.set_headphone_color(HeadphoneSide::Left, (255, 0, 0));
-
-        true
+    fn change_property(&self, property: &str, value: &str) -> Result<(), Error> {
+        match property {
+            "lhc" => self.set_headphone_color(Side::Left, Color::from(value)),
+            "rhc" => self.set_headphone_color(Side::Right, Color::from(value)),
+            "hc" => {
+                match self.set_headphone_color(Side::Left, Color::from(value)) {
+                    Ok(_) => {
+                        self.set_headphone_color(Side::Right, Color::from(value))
+                    },
+                    Err(e) => {
+                        Err(e)
+                    }
+                }
+            }
+            _ => Ok(())
+        }
     }
 
     fn get_vendor_id(&self) -> u16 {
@@ -113,7 +118,7 @@ impl SteelseriesDevice for Arctis5Headphones {
     }
 }
 
-fn generate_color_change_operations<'a>(color: (u8, u8, u8)) -> Vec<DeviceOperation<'a>> {
+fn generate_color_change_operations<'a>(color: (u8, u8, u8)) -> Vec<DeviceOperation> {
     let request_type_out: u8 = rusb::request_type(
         rusb::Direction::Out,
         rusb::RequestType::Class,
@@ -121,11 +126,11 @@ fn generate_color_change_operations<'a>(color: (u8, u8, u8)) -> Vec<DeviceOperat
     );
 
     let max_control_wait = std::time::Duration::from_millis(500);
-    let max_interrupt_wait = std::time::Duration::from_millis(50);
+    let _max_interrupt_wait = std::time::Duration::from_millis(50);
 
     let w_index = 5;
 
-    let mut operations: Vec<DeviceOperation<'a>> = vec![
+    let mut operations: Vec<DeviceOperation> = vec![
         DeviceOperation::Control(
             Payload {
                 request_type: request_type_out,
@@ -331,7 +336,7 @@ fn generate_color_change_operations<'a>(color: (u8, u8, u8)) -> Vec<DeviceOperat
 
     let mut last_v_byte = 0x08;
 
-    for i in 0..16 {
+    for _ in 0..16 {
         operations.push(
             DeviceOperation::Control(
                 Payload {
