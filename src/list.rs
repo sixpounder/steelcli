@@ -1,4 +1,4 @@
-use crate::device_ops::open_device;
+use crate::{device_ops::open_device, errors::SteelseriesResult};
 use crate::device_ops::{supported_devices, find_readable_endpoints};
 use rusb::DeviceHandle;
 use rusb::UsbContext;
@@ -8,7 +8,7 @@ use colored::*;
 
 const WARN_SIGN: char = '\u{26A0}';
 
-pub fn list() -> Result<()> {
+pub fn list() -> SteelseriesResult<()> {
     let mut context = Context::new()?;
     for (vendor_id, product_id, _name) in supported_devices().iter() {
         let open_result = open_device(&mut context, *vendor_id, *product_id);

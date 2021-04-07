@@ -10,13 +10,14 @@ mod list;
 mod describe;
 mod devices;
 mod lcore;
+mod errors;
 
+use errors::{SteelseriesError, SteelseriesResult};
 use lcore::LogLevel;
 use change::change;
 use list::list;
 use clap::App;
 use regex::Regex;
-use rusb::Result;
 
 const HEX_STR_REGEXP: &str = r"[a-f]";
 
@@ -27,8 +28,11 @@ lazy_static! {
     };
 }
 
-fn main() -> Result<()> {
+fn main() -> SteelseriesResult<()> {
     match sudo::escalate_if_needed() {
+        Err(_some_error) => {
+            return Err(SteelseriesError::Privileges);
+        }
         _ => (),
     }
 

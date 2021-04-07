@@ -1,8 +1,6 @@
-use rusb::Error;
-
-use crate::lcore::{
+use crate::{errors::*, lcore::{
     Color, CommandFactory, DeviceCapability, DeviceOperation, Side, SteelseriesDevice,
-};
+}};
 
 use super::LOGGER;
 
@@ -28,7 +26,7 @@ impl Arctis5Headphones {
         }
     }
 
-    pub fn set_headphone_color(&self, side: Side, color: Color) -> Result<(), Error> {
+    pub fn set_headphone_color(&self, side: Side, color: Color) -> SteelseriesResult<()> {
         let (mut _device, mut handle) = self.open_device().expect("Failed to open device");
         let iface = match side {
             Side::Left => 5,
@@ -82,21 +80,17 @@ impl Arctis5Headphones {
                     }
                 }
 
-                handle.release_interface(iface)
+                Ok(handle.release_interface(iface)?)
             }
             Err(e) => {
                 println!("Could not claim interface: {}", e);
-                Err(e)
+                Err(SteelseriesError::Usb(e))
             }
         }
     }
 }
 
 impl SteelseriesDevice for Arctis5Headphones {
-    fn matches(&self, vendor_id: u16, product_id: u16) -> bool {
-        self.product_id == product_id && self.vendor_id == vendor_id
-    }
-
     fn enumerate_capabilities(&self) -> std::slice::Iter<DeviceCapability> {
         self.capabilities.iter()
     }
@@ -105,7 +99,7 @@ impl SteelseriesDevice for Arctis5Headphones {
         "Arctis 5"
     }
 
-    fn change_property(&self, property: &str, value: &str) -> Result<(), Error> {
+    fn change_property(&self, property: &str, value: &str) -> SteelseriesResult<()> {
         super::LOGGER.verbose(|| {
             println!("Changing {} to {}", property, value);
         });

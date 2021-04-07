@@ -1,5 +1,7 @@
 use rusb::{Context, Device, DeviceHandle, UsbContext};
 
+use crate::errors::SteelseriesResult;
+
 pub struct DeviceCapability<'a> {
     pub label: &'a str,
     pub description: &'a str,
@@ -15,12 +17,16 @@ impl<'a> From<(&'a str, &'a str)> for DeviceCapability<'a> {
 }
 
 pub trait SteelseriesDevice {
-    fn matches(&self, vendor_id: u16, product_id: u16) -> bool;
     fn enumerate_capabilities(&self) -> std::slice::Iter<DeviceCapability>;
     fn get_name(&self) -> &str;
-    fn change_property(&self, property: &str, value: &str) -> Result<(), rusb::Error>;
+    fn change_property(&self, property: &str, value: &str) -> SteelseriesResult<()>;
     fn get_vendor_id(&self) -> u16;
     fn get_product_id(&self) -> u16;
+
+    fn matches(&self, vendor_id: u16, product_id: u16) -> bool {
+        self.get_vendor_id() == vendor_id && self.get_product_id() == product_id
+    }
+
     fn open_device(&self) -> Option<(Device<Context>, DeviceHandle<Context>)> {
         let context = Context::new().unwrap();
         let devices = match context.devices() {

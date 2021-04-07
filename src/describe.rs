@@ -1,8 +1,6 @@
-use rusb::Result;
+use crate::{device_ops::DevicePool, errors::SteelseriesResult};
 
-use crate::device_ops::DevicePool;
-
-pub fn describe(vendor_id: u16, product_id: u16) -> Result<()> {
+pub fn describe(vendor_id: u16, product_id: u16) -> SteelseriesResult<()> {
     let pool = DevicePool::new();
 
     let device = pool
