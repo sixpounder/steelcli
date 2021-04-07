@@ -10,7 +10,6 @@ args:
     - verbose:
         long: verbose
         short: v
-        multiple: true
         help: Sets the level of verbosity
 subcommands:
     - describe:
@@ -35,7 +34,7 @@ subcommands:
             - PROPERTY:
                 index: 1
                 required: true
-                help: Specifies what property to manipulate (eg. a led color). Supported properties varies per device, use the 'describe' command to inspect a single device for supported properties
+                help: Specifies what property to manipulate (eg. a led color). Properties support varies per device, use the 'describe' command to inspect a single device for supported properties
             - VALUE:
                 index: 2
                 required: true

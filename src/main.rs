@@ -1,20 +1,31 @@
 #[macro_use]
 extern crate clap;
 
+#[macro_use]
+extern crate lazy_static;
+
 mod change;
 mod device_ops;
 mod list;
 mod describe;
 mod devices;
-mod core;
+mod lcore;
 
-use crate::change::change;
-use crate::list::list;
+use lcore::LogLevel;
+use change::change;
+use list::list;
 use clap::App;
 use regex::Regex;
 use rusb::Result;
 
 const HEX_STR_REGEXP: &str = r"[a-f]";
+
+lazy_static! {
+    pub static ref LOGGER: crate::lcore::Log = {
+        let l = crate::lcore::Log::new();
+        l
+    };
+}
 
 fn main() -> Result<()> {
     match sudo::escalate_if_needed() {
@@ -26,6 +37,12 @@ fn main() -> Result<()> {
     let matches = cli.get_matches();
     let mut cli = App::from_yaml(yaml);
 
+    if let 0 = matches.occurrences_of("verbose") + matches.occurrences_of("v") {
+        LOGGER.set_level(LogLevel::NORMAL);
+    } else {
+        LOGGER.set_level(LogLevel::VERBOSE);
+    }
+
     if let Some(_cmd) = matches.subcommand_matches("list") {
         list()
     } else if let Some(cmd) = matches.subcommand_matches("describe") {
@@ -35,7 +52,7 @@ fn main() -> Result<()> {
     } else if let Some(cmd) = matches.subcommand_matches("change") {
         let device = device_from_arg(cmd.value_of("device").unwrap_or("0:0"));
         let prop = cmd.value_of("PROPERTY").unwrap_or("");
-        let value = matches.value_of("VALUE").unwrap_or("");
+        let value = cmd.value_of("VALUE").unwrap_or("");
 
         change(device.0, device.1, prop, value)
     } else {

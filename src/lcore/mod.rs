@@ -2,6 +2,8 @@ use std::time::Duration;
 
 mod color;
 mod steelseries_device;
+mod log;
+pub use log::*;
 pub use color::*;
 pub use steelseries_device::*;
 
@@ -27,7 +29,7 @@ pub enum DeviceOperation {
 
 pub struct CommandFactory {
     control_timeout: Duration,
-    interrupt_timeout: Duration,
+    _interrupt_timeout: Duration,
     w_index: u16,
     w_value: u16,
     request_type_out: u8
@@ -42,7 +44,7 @@ impl CommandFactory {
         );
         Self {
             control_timeout: std::time::Duration::from_millis(500),
-            interrupt_timeout: std::time::Duration::from_millis(50),
+            _interrupt_timeout: std::time::Duration::from_millis(50),
             w_index: 5,
             w_value: 0x0206,
             request_type_out
@@ -72,12 +74,12 @@ impl CommandFactory {
     }
 }
 
-pub struct CommandBuilder {
-    w_index: u16,
-    w_value: u16,
-    request_type_out: u8
-}
+// pub struct CommandBuilder {
+//     w_index: u16,
+//     w_value: u16,
+//     request_type_out: u8
+// }
 
-impl CommandBuilder {
+// impl CommandBuilder {
     
-}
+// }

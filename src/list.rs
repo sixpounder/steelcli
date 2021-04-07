@@ -4,23 +4,34 @@ use rusb::DeviceHandle;
 use rusb::UsbContext;
 use rusb::{Context, Result};
 use std::time::Duration;
+use colored::*;
+
+const WARN_SIGN: char = '\u{26A0}';
 
 pub fn list() -> Result<()> {
     let mut context = Context::new()?;
     for (vendor_id, product_id, _name) in supported_devices().iter() {
-        let (mut device, mut handle) =
-            open_device(&mut context, *vendor_id, *product_id).expect("Failed to open device");
-        print_device_info(&mut handle)?;
-        match find_readable_endpoints(&mut device) {
-            Ok(endpoints) => {
-                for e in endpoints.iter() {
-                    println!("\t{:?}", e);
+        let open_result = open_device(&mut context, *vendor_id, *product_id);
+        match open_result {
+            Some((mut device, mut handle)) => {
+                print_device_info(&mut handle)?;
+                match find_readable_endpoints(&mut device) {
+                    Ok(endpoints) => {
+                        println!("{}:", "Endpoints".cyan());
+                        for e in endpoints.iter() {
+                            println!("  Ͱ {:?}", e);
+                        }
+                    },
+                    Err(_) => {
+                        println!("{} {}", WARN_SIGN, "No endpoints found for this device".yellow());
+                    }
                 }
+                // println!("--------------------------");
+                println!("\n");
+                println!("\n");
             },
-            Err(_) => ()
+            _ => () // Device not connected?
         }
-        println!("--------------------------");
-        println!("\n");
     }
 
     Ok(())
@@ -32,12 +43,14 @@ fn print_device_info<T: UsbContext>(handle: &mut DeviceHandle<T>) -> Result<()> 
     let languages = handle.read_languages(timeout)?;
 
     println!(
-        "Device ID: {}",
+        "{}: {}",
+        "Device ID".cyan(),
         device_desc.product_id()
     );
 
     println!(
-        "Vendor ID: {}",
+        "{}: {}",
+        "Vendor ID".cyan(),
         device_desc.vendor_id()
     );
 
@@ -45,28 +58,31 @@ fn print_device_info<T: UsbContext>(handle: &mut DeviceHandle<T>) -> Result<()> 
         let language = languages[0];
 
         println!(
-            "Manufacturer: {}",
+            "{}: {}",
+            "Manufacturer".cyan(),
             handle
                 .read_manufacturer_string(language, &device_desc, timeout)
                 .unwrap_or("Not Found".to_string())
         );
         println!(
-            "Product: {}",
+            "{}: {}",
+            "Product".cyan(),
             handle
                 .read_product_string(language, &device_desc, timeout)
                 .unwrap_or("Not Found".to_string())
         );
         println!(
-            "Serial Number: {}",
+            "{}: {}",
+            "Serial Number".cyan(),
             handle
                 .read_serial_number_string(language, &device_desc, timeout)
                 .unwrap_or("Not Found".to_string())
         );
 
-        println!("Language: {:?}", language);
+        println!("{}: {:?}", "Language".cyan(), language);
     }
 
-    println!("Active configuration: {}", handle.active_configuration()?);
+    println!("{}: {}", "Active configuration".cyan(), handle.active_configuration()?);
 
     Ok(())
 }

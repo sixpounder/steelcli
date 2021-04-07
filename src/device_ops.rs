@@ -2,7 +2,7 @@ use rusb::DeviceHandle;
 use rusb::Device;
 use rusb::UsbContext;
 
-use crate::core::SteelseriesDevice;
+use crate::lcore::SteelseriesDevice;
 
 const STEELSERIES_VENDOR_ID: u16 = 0x1038;
 const ARCTIS_5_PID: u16 = 0x12aa;
@@ -15,8 +15,8 @@ impl DevicePool {
     pub fn new() -> Self {
         let mut devices = vec![];
 
-        let arctis5: Box<dyn SteelseriesDevice> = Box::new(crate::devices::Arctis5Headphones::new());
-        devices.push(arctis5);
+        let arctis_five: Box<dyn SteelseriesDevice> = Box::new(crate::devices::Arctis5Headphones::new());
+        devices.push(arctis_five);
 
         Self { devices }
     }
