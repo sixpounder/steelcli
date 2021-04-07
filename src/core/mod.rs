@@ -25,7 +25,7 @@ pub enum DeviceOperation {
     Control(Payload)
 }
 
-pub struct CommandBuilder {
+pub struct CommandFactory {
     control_timeout: Duration,
     interrupt_timeout: Duration,
     w_index: u16,
@@ -33,7 +33,7 @@ pub struct CommandBuilder {
     request_type_out: u8
 }
 
-impl CommandBuilder {
+impl CommandFactory {
     pub fn new() -> Self {
         let request_type_out = rusb::request_type(
             rusb::Direction::Out,
@@ -70,4 +70,14 @@ impl CommandBuilder {
     pub fn build_interrupt_with_data(&self, ic: u8, data: Vec<u8>) -> DeviceOperation {
         DeviceOperation::Interrupt(ic, data)
     }
+}
+
+pub struct CommandBuilder {
+    w_index: u16,
+    w_value: u16,
+    request_type_out: u8
+}
+
+impl CommandBuilder {
+    
 }
