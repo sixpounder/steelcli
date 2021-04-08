@@ -6,7 +6,7 @@ use rusb::{Context, Result};
 use std::time::Duration;
 use colored::*;
 
-const WARN_SIGN: char = '\u{26A0}';
+const WARN_SIGN: char = '⚠';
 
 pub fn list() -> SteelseriesResult<()> {
     let mut context = Context::new()?;

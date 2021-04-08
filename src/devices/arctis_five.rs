@@ -27,24 +27,18 @@ impl Arctis5Headphones {
     }
 
     pub fn set_headphone_color(&self, side: Side, color: Color) -> SteelseriesResult<()> {
-        let (mut _device, mut handle) = self.open_device().expect("Failed to open device");
+        let mut device_handle = self.open_device().expect("Failed to open device");
         let iface = match side {
             Side::Left => 5,
             Side::Right => 5,
         };
 
-        handle
-            .set_auto_detach_kernel_driver(true)
-            .expect("Could not detach kernel driver");
-
-        // println!("Payload size: {}", payload.len());
-
-        match handle.claim_interface(iface) {
+        match device_handle.claim_interface(iface) {
             Ok(()) => {
                 for usb_comm_operation in generate_color_change_operations(color.into()).iter() {
                     match usb_comm_operation {
                         DeviceOperation::WriteControl(payload) => {
-                            match handle.write_control(
+                            match device_handle.usb_handle().write_control(
                                 payload.request_type,
                                 payload.request,
                                 payload.value,
@@ -66,7 +60,7 @@ impl Arctis5Headphones {
                         },
                         DeviceOperation::ReadControl(payload) => {
                             let mut response_buf = vec![];
-                            match handle.read_control(
+                            match device_handle.usb_handle().read_control(
                                 payload.request_type,
                                 payload.request,
                                 payload.value,
@@ -84,11 +78,9 @@ impl Arctis5Headphones {
                             }
                         }
                         DeviceOperation::WriteInterrupt(endpoint, buf) => {
-                            match handle.write_interrupt(*endpoint, buf, std::time::Duration::from_millis(50)) {
+                            match device_handle.usb_handle().write_interrupt(*endpoint, buf, std::time::Duration::from_millis(50)) {
                                 Ok(n_bytes) => {
-                                    LOGGER.verbose_wrap(|| {
-                                        println!("Device Interrupt <- {} bytes", n_bytes);
-                                    });
+                                    LOGGER.verbose(format!("Device Interrupt <- {} bytes", n_bytes).as_str());
                                 },
                                 Err(some_error) => {
                                     // println!("{:?}", _some_error);
@@ -99,12 +91,12 @@ impl Arctis5Headphones {
                         },
                         DeviceOperation::ReadInterrupt(endpoint) => {
                             let mut buf = vec![];
-                            match handle.read_interrupt(*endpoint, &mut buf, std::time::Duration::from_millis(50)) {
+                            match device_handle.usb_handle().read_interrupt(*endpoint, &mut buf, std::time::Duration::from_millis(50)) {
                                 Ok(_bytes_read) => {
                                     LOGGER.verbose("Interrupt IN with");
                                 },
                                 Err(interrupt_error) => {
-                                    LOGGER.warn("Interrupt error");
+                                    LOGGER.error("Interrupt error");
                                     // return Err(SteelseriesError::Usb(interrupt_error));
                                     return Err(SteelseriesError::Usb(interrupt_error));
                                 }
@@ -113,11 +105,11 @@ impl Arctis5Headphones {
                     }
                 }
 
-                Ok(handle.release_interface(iface)?)
+                Ok(device_handle.release_interface(iface)?)
             }
             Err(e) => {
-                LOGGER.error(format!("Could not claim interface: {}", e).as_str());
-                Err(SteelseriesError::Usb(e))
+                LOGGER.error(format!("Could not claim interface").as_str());
+                Err(e)
             }
         }
     }

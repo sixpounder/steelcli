@@ -1,6 +1,8 @@
 #[derive(Debug)]
 pub enum SteelseriesError {
     Privileges,
+    ClaimInterface(u8),
+    ReleaseInterface(u8),
     Usb(rusb::Error)
 }
 
