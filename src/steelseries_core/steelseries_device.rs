@@ -1,5 +1,5 @@
 use rusb::{Context, Device, DeviceHandle, UsbContext};
-
+use crate::LOGGER;
 use crate::errors::SteelseriesResult;
 
 pub struct DeviceCapability<'a> {
@@ -32,7 +32,7 @@ pub trait SteelseriesDevice {
         let devices = match context.devices() {
             Ok(d) => d,
             Err(e) => {
-                println!("{}", e);
+                LOGGER.error(format!("{}", e).as_str());
                 return None;
             }
         };
@@ -49,7 +49,7 @@ pub trait SteelseriesDevice {
                 match device.open() {
                     Ok(handle) => return Some((device, handle)),
                     Err(e) => {
-                        println!("{}", e);
+                        LOGGER.warn(format!("{}", e).as_str());
                         continue;
                     }
                 }

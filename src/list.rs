@@ -1,5 +1,5 @@
-use crate::{device_ops::open_device, errors::SteelseriesResult};
-use crate::device_ops::{supported_devices, find_readable_endpoints};
+use crate::{device_ops::open_device, errors::SteelseriesResult, steelseries_core::support::supported_devices};
+use crate::device_ops::find_readable_endpoints;
 use rusb::DeviceHandle;
 use rusb::UsbContext;
 use rusb::{Context, Result};

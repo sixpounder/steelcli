@@ -9,11 +9,11 @@ mod device_ops;
 mod list;
 mod describe;
 mod devices;
-mod lcore;
+mod steelseries_core;
 mod errors;
 
 use errors::{SteelseriesError, SteelseriesResult};
-use lcore::LogLevel;
+use steelseries_core::LogLevel;
 use change::change;
 use list::list;
 use clap::App;
@@ -22,8 +22,8 @@ use regex::Regex;
 const HEX_STR_REGEXP: &str = r"[a-f]";
 
 lazy_static! {
-    pub static ref LOGGER: crate::lcore::Log = {
-        let l = crate::lcore::Log::new();
+    pub static ref LOGGER: crate::steelseries_core::Log = {
+        let l = crate::steelseries_core::Log::new();
         l
     };
 }
@@ -42,9 +42,9 @@ fn main() -> SteelseriesResult<()> {
     let mut cli = App::from_yaml(yaml);
 
     if let 0 = matches.occurrences_of("verbose") + matches.occurrences_of("v") {
-        LOGGER.set_level(LogLevel::NORMAL);
+        LOGGER.set_level(LogLevel::Normal);
     } else {
-        LOGGER.set_level(LogLevel::VERBOSE);
+        LOGGER.set_level(LogLevel::Verbose);
     }
 
     if let Some(_cmd) = matches.subcommand_matches("list") {
