@@ -1,6 +1,7 @@
 use rusb::DeviceHandle;
 use rusb::Device;
 use rusb::UsbContext;
+use colored::*;
 
 #[derive(Debug)]
 pub struct Endpoint {
@@ -34,14 +35,21 @@ pub fn open_device<T: UsbContext>(
             match device.open() {
                 Ok(handle) => return Some((device, handle)),
                 Err(e) => {
-                    println!("{}", e);
+                    match e {
+                        rusb::Error::Access => {
+                            crate::LOGGER.error(
+                                format!("Access denied. Try running with {} or use the --escalate argument.", "sudo".bold()).as_str()
+                            );
+                        }
+                        _ => {
+                            crate::LOGGER.error(format!("{}", e).as_str());
+                        }
+                    }
                     continue
                 },
             }
         }
     }
-
-    println!("No device");
     None
 }
 

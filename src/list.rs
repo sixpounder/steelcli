@@ -1,19 +1,28 @@
 use crate::{device_ops::open_device, errors::SteelseriesResult, steelseries_core::support::supported_devices};
 use crate::device_ops::find_readable_endpoints;
+use crate::utils;
 use rusb::DeviceHandle;
 use rusb::UsbContext;
 use rusb::{Context, Result};
 use std::time::Duration;
 use colored::*;
-
-const WARN_SIGN: char = '⚠';
+use crate::LOGGER;
 
 pub fn list() -> SteelseriesResult<()> {
     let mut context = Context::new()?;
+    let mut first = true;
     for (vendor_id, product_id, _name) in supported_devices().iter() {
         let open_result = open_device(&mut context, *vendor_id, *product_id);
         match open_result {
             Some((mut device, mut handle)) => {
+                if !first {
+                    println!("|");
+                    println!("|");
+                    println!("|");
+                    println!("|");
+                } else {
+                    first = false;
+                }
                 print_device_info(&mut handle)?;
                 match find_readable_endpoints(&mut device) {
                     Ok(endpoints) => {
@@ -23,12 +32,9 @@ pub fn list() -> SteelseriesResult<()> {
                         }
                     },
                     Err(_) => {
-                        println!("{} {}", WARN_SIGN, "No endpoints found for this device".yellow());
+                        LOGGER.warn("No endpoints found for this device");
                     }
                 }
-                // println!("--------------------------");
-                println!("\n");
-                println!("\n");
             },
             _ => () // Device not connected?
         }
@@ -44,14 +50,14 @@ fn print_device_info<T: UsbContext>(handle: &mut DeviceHandle<T>) -> Result<()> 
 
     println!(
         "{}: {}",
-        "Device ID".cyan(),
-        device_desc.product_id()
+        "Vendor ID".cyan(),
+        utils::format_radix(device_desc.vendor_id() as u32, 16)
     );
 
     println!(
         "{}: {}",
-        "Vendor ID".cyan(),
-        device_desc.vendor_id()
+        "Device ID".cyan(),
+        utils::format_radix(device_desc.product_id() as u32, 16)
     );
 
     if !languages.is_empty() {
@@ -79,7 +85,7 @@ fn print_device_info<T: UsbContext>(handle: &mut DeviceHandle<T>) -> Result<()> 
                 .unwrap_or("Not Found".to_string())
         );
 
-        println!("{}: {:?}", "Language".cyan(), language);
+        println!("{}: {:?}", "Primary language".cyan(), language.primary_language());
     }
 
     println!("{}: {}", "Active configuration".cyan(), handle.active_configuration()?);

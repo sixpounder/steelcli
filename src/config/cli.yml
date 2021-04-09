@@ -11,6 +11,10 @@ args:
         long: verbose
         short: v
         help: Sets the level of verbosity
+    - escalate:
+        long: escalate
+        short: e
+        help: Internally escalate privileges if needed, prompting the user for authentication
 subcommands:
     - describe:
         version: "1.0"
