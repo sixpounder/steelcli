@@ -65,7 +65,7 @@ pub fn find_readable_endpoints<T: UsbContext>(device: &mut Device<T>) -> rusb::R
         // println!("{:#?}", config_desc);
         for interface in config_desc.interfaces() {
             for interface_desc in interface.descriptors() {
-                // println!("{:#?}", interface_desc);
+                println!("{:?}", interface_desc);
                 for endpoint_desc in interface_desc.endpoint_descriptors() {
                     // println!("{:#?}", endpoint_desc);
                     endpoints.push(Endpoint {

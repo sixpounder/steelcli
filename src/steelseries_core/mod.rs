@@ -66,7 +66,7 @@ impl CommandFactory {
 
         Self {
             control_timeout: std::time::Duration::from_millis(500),
-            interrupt_timeout: std::time::Duration::from_millis(50),
+            interrupt_timeout: std::time::Duration::from_millis(500),
             w_index: 5,
             w_value: 0x0206,
             w_request: 9,
