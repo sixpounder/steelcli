@@ -7,34 +7,42 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'steelseries-engine'",
+            "name": "Debug executable 'steelseries-cli'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=steelseries-engine",
-                    "--package=steelseries-engine"
+                    "--bin=steelseries-cli",
+                    "--package=steelseries-cli"
                 ],
                 "filter": {
-                    "name": "steelseries-engine",
+                    "name": "steelseries-cli",
                     "kind": "bin"
                 }
             },
-            "args": [],
+            "args": [
+                "--escalate",
+                "-v",
+                "change",
+                "-d",
+                "1038:12aa",
+                "lhc",
+                "'255.0.0'"
+            ],
             "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'steelseries-engine'",
+            "name": "Debug unit tests in executable 'steelseries-cli'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=steelseries-engine",
-                    "--package=steelseries-engine"
+                    "--bin=steelseries-cli",
+                    "--package=steelseries-cli"
                 ],
                 "filter": {
-                    "name": "steelseries-engine",
+                    "name": "steelseries-cli",
                     "kind": "bin"
                 }
             },

@@ -6,7 +6,7 @@ use rusb::UsbContext;
 use rusb::{Context, Result};
 use std::time::Duration;
 use colored::*;
-use crate::LOGGER;
+use crate::OUTPUT;
 
 pub fn list() -> SteelseriesResult<()> {
     let mut context = Context::new()?;
@@ -32,7 +32,7 @@ pub fn list() -> SteelseriesResult<()> {
                         }
                     },
                     Err(_) => {
-                        LOGGER.warn("No endpoints found for this device");
+                        OUTPUT.warn("No endpoints found for this device");
                     }
                 }
             },

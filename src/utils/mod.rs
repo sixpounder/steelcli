@@ -14,3 +14,11 @@ pub fn format_radix(mut x: u32, radix: u32) -> String {
     }
     result.into_iter().rev().collect()
 }
+
+pub fn parse_pid_vid(device_str: &str) -> (u16, u16) {
+    let parts = device_str.split(":").collect::<Vec<&str>>(); // eg: 1038:12aa
+    let vid = u16::from_str_radix(parts[0], 16).unwrap_or(0);
+    let pid = u16::from_str_radix(parts[1], 16).unwrap_or(0);
+
+    (vid, pid)
+}

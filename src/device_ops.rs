@@ -37,12 +37,12 @@ pub fn open_device<T: UsbContext>(
                 Err(e) => {
                     match e {
                         rusb::Error::Access => {
-                            crate::LOGGER.error(
+                            crate::OUTPUT.error(
                                 format!("Access denied. Try running with {} or use the --escalate argument.", "sudo".bold()).as_str()
                             );
                         }
                         _ => {
-                            crate::LOGGER.error(format!("{}", e).as_str());
+                            crate::OUTPUT.error(format!("{}", e).as_str());
                         }
                     }
                     continue

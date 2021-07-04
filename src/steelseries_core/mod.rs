@@ -42,9 +42,10 @@ pub enum DeviceOperation {
 
 pub struct CommandFactory {
     control_timeout: Duration,
-    _interrupt_timeout: Duration,
+    interrupt_timeout: Duration,
     w_index: u16,
     w_value: u16,
+    w_request: u8,
     request_type_out: u8,
     request_type_in: u8
 }
@@ -65,19 +66,36 @@ impl CommandFactory {
 
         Self {
             control_timeout: std::time::Duration::from_millis(500),
-            _interrupt_timeout: std::time::Duration::from_millis(50),
+            interrupt_timeout: std::time::Duration::from_millis(50),
             w_index: 5,
             w_value: 0x0206,
+            w_request: 9,
             request_type_out,
             request_type_in
         }
+    }
+
+    pub fn control_timeout(&mut self, timeout: Duration) {
+        self.control_timeout = timeout;
+    }
+
+    pub fn interrupt_timeout(&mut self, timeout: Duration) {
+        self.interrupt_timeout = timeout;
+    }
+
+    pub fn value(&mut self, value: u16) {
+        self.w_value = value;
+    }
+
+    pub fn index(&mut self, value: u16) {
+        self.w_index = value;
     }
 
     pub fn build_write_control(&self, buf: Vec<u8>) -> DeviceOperation {
         DeviceOperation::WriteControl(
             Payload {
                 request_type: self.request_type_out,
-                request: 9,
+                request: self.w_request,
                 value: self.w_value,
                 index: self.w_index,
                 buf,
@@ -91,7 +109,7 @@ impl CommandFactory {
         DeviceOperation::ReadControl(
             URBConfiguration {
                 request_type: self.request_type_in,
-                request: 9,
+                request: self.w_request,
                 value: self.w_value,
                 index: self.w_index,
                 timeout: self.control_timeout,

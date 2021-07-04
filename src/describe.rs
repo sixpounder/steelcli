@@ -1,5 +1,5 @@
 use crate::{errors::SteelseriesResult, steelseries_core::support::DevicePool};
-use crate::LOGGER;
+use crate::OUTPUT;
 
 pub fn describe(vendor_id: u16, product_id: u16) -> SteelseriesResult<()> {
     let pool = DevicePool::new();
@@ -9,7 +9,7 @@ pub fn describe(vendor_id: u16, product_id: u16) -> SteelseriesResult<()> {
         .expect("Device not supported");
 
     for c in device.enumerate_capabilities() {
-        LOGGER.log(format!("{} - {}", c.label, c.description).as_str());
+        OUTPUT.log(format!("{} - {}", c.label, c.description).as_str());
     }
     
     Ok(())

@@ -34,7 +34,7 @@ subcommands:
                 short: d
                 long: device
                 value_name: DEVICE_ID
-                help: Specifies a device to manipulate. If not specified, the first device from the 'list' command output is assumed
+                help: Specifies a device to manipulate. If not specified, the first device from the 'list' command OUTPUT is assumed
             - PROPERTY:
                 index: 1
                 required: true

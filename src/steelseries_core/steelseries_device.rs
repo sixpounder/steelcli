@@ -1,6 +1,8 @@
 use crate::errors::SteelseriesResult;
-use crate::{errors::SteelseriesError, LOGGER};
+use crate::{errors::SteelseriesError, OUTPUT};
 use rusb::{Context, Device, DeviceHandle, UsbContext};
+
+use super::DeviceOperation;
 
 pub struct DeviceCapability<'a> {
     pub label: &'a str,
@@ -72,7 +74,7 @@ impl SteelseriesDeviceHandle {
                             Ok(())
                         }
                         Err(_e) => {
-                            LOGGER.warn(
+                            OUTPUT.warn(
                                 format!(
                                     "Could not reattach kernel driver to interface {}",
                                     claimed_interface
@@ -89,6 +91,80 @@ impl SteelseriesDeviceHandle {
             }
             None => Ok(()),
         }
+    }
+
+    pub fn process_commands(&self, device_ops: Vec<DeviceOperation>) -> SteelseriesResult<()> {
+        for usb_comm_operation in device_ops.iter() {
+            match usb_comm_operation {
+                DeviceOperation::WriteControl(payload) => {
+                    match self.usb_handle().write_control(
+                        payload.request_type,
+                        payload.request,
+                        payload.value,
+                        payload.index,
+                        &payload.buf,
+                        payload.timeout,
+                    ) {
+                        Ok(size) => {
+                            OUTPUT.verbose(format!("URB_CONTROL out {} bytes -> Device", size).as_str());
+    
+                            if let Some(m) = payload.debug_message.as_ref() {
+                                OUTPUT.verbose(m);
+                            }
+                        }
+                        Err(e) => {
+                            OUTPUT.error(format!("Error: {}", e).as_str());
+                        }
+                    }
+                },
+                DeviceOperation::ReadControl(payload) => {
+                    let mut response_buf = vec![];
+                    match self.usb_handle().read_control(
+                        payload.request_type,
+                        payload.request,
+                        payload.value,
+                        payload.index,
+                        &mut response_buf,
+                        payload.timeout,
+                    ) {
+                        Ok(n) => {
+                            OUTPUT.verbose(format!("Host <- URB_CONTROL out {} bytes", n).as_str());
+                        },
+                        Err(read_error) => {
+                            OUTPUT.error(format!("Host <- URB_CONTROL out").as_str());
+                            return Err(SteelseriesError::Usb(read_error));
+                        }
+                    }
+                }
+                DeviceOperation::WriteInterrupt(endpoint, buf) => {
+                    match self.usb_handle().write_interrupt(*endpoint, buf, std::time::Duration::from_millis(50)) {
+                        Ok(n_bytes) => {
+                            OUTPUT.verbose(format!("Device Interrupt <- {} bytes", n_bytes).as_str());
+                        },
+                        Err(some_error) => {
+                            // println!("{:?}", _some_error);
+                            OUTPUT.error("Interrupt error");
+                            return Err(SteelseriesError::Usb(some_error));
+                        }
+                    }
+                },
+                DeviceOperation::ReadInterrupt(endpoint) => {
+                    let mut buf = vec![];
+                    match self.usb_handle().read_interrupt(*endpoint, &mut buf, std::time::Duration::from_millis(50)) {
+                        Ok(_bytes_read) => {
+                            OUTPUT.verbose("Interrupt IN with");
+                        },
+                        Err(interrupt_error) => {
+                            OUTPUT.error("Interrupt error");
+                            // return Err(SteelseriesError::Usb(interrupt_error));
+                            return Err(SteelseriesError::Usb(interrupt_error));
+                        }
+                    }
+                }
+            }
+        }
+    
+        Ok(())
     }
 }
 
@@ -112,7 +188,7 @@ impl Drop for SteelseriesDeviceHandle {
                         }
                     }
                     Err(_e) => {
-                        LOGGER.warn(
+                        OUTPUT.warn(
                             format!(
                                 "Could not reattach kernel driver to interface {}",
                                 claimed_interface
@@ -133,7 +209,6 @@ pub trait SteelseriesDevice {
     fn change_property(&self, property: &str, value: &str) -> SteelseriesResult<()>;
     fn get_vendor_id(&self) -> u16;
     fn get_product_id(&self) -> u16;
-
     fn matches(&self, vendor_id: u16, product_id: u16) -> bool {
         self.get_vendor_id() == vendor_id && self.get_product_id() == product_id
     }
@@ -143,7 +218,7 @@ pub trait SteelseriesDevice {
         let devices = match context.devices() {
             Ok(d) => d,
             Err(e) => {
-                LOGGER.error(format!("{}", e).as_str());
+                OUTPUT.error(format!("{}", e).as_str());
                 return None;
             }
         };
@@ -162,7 +237,7 @@ pub trait SteelseriesDevice {
                         return Some(SteelseriesDeviceHandle::new(device, handle));
                     }
                     Err(e) => {
-                        LOGGER.warn(format!("{}", e).as_str());
+                        OUTPUT.warn(format!("{}", e).as_str());
                         continue;
                     }
                 }
