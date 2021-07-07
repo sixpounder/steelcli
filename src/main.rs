@@ -36,11 +36,8 @@ fn main() -> SteelseriesResult<()> {
     let matches = cli.clone().get_matches();
 
     if matches.occurrences_of("escalate") + matches.occurrences_of("e") != 0 {
-        match sudo::escalate_if_needed() {
-            Err(_some_error) => {
-                return Err(SteelseriesError::Privileges);
-            }
-            _ => (),
+        if let Err(_some_error) = sudo::escalate_if_needed() {
+            return Err(SteelseriesError::Privileges);
         }
     }
 
@@ -53,11 +50,11 @@ fn main() -> SteelseriesResult<()> {
     if let Some(_cmd) = matches.subcommand_matches("list") {
         list()
     } else if let Some(cmd) = matches.subcommand_matches("describe") {
-        let device = utils::parse_pid_vid(cmd.value_of("device").unwrap_or("0:0"));
+        let device = utils::parse_device_id(cmd.value_of("device").unwrap_or("0:0"));
         describe::describe(device.0, device.1)
 
     } else if let Some(cmd) = matches.subcommand_matches("change") {
-        let device = utils::parse_pid_vid(cmd.value_of("device").unwrap_or("0:0"));
+        let device = utils::parse_device_id(cmd.value_of("device").unwrap_or("0:0"));
         let prop = cmd.value_of("PROPERTY").unwrap_or("");
         let value = cmd.value_of("VALUE").unwrap_or("");
 

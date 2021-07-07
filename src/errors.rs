@@ -3,7 +3,7 @@ pub enum SteelseriesError {
     Privileges,
     ClaimInterface(u8),
     ReleaseInterface(u8),
-    Usb(rusb::Error)
+    Usb(rusb::Error),
 }
 
 impl From<rusb::Error> for SteelseriesError {
