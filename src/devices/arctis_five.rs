@@ -33,7 +33,7 @@ impl Arctis5Headphones {
 
         match device_handle.claim_interface(iface) {
             Ok(()) => {
-                device_handle.process_commands(generate_color_change_operations(color.into()))?;
+                device_handle.process_commands(generate_color_change_operations(side, color.into()))?;
                 Ok(device_handle.release_interface(iface)?)
             }
             Err(e) => {
@@ -75,7 +75,7 @@ impl SteelseriesDevice for Arctis5Headphones {
     }
 }
 
-fn generate_color_change_operations(color: (u8, u8, u8)) -> Vec<DeviceOperation> {
+fn generate_color_change_operations(headphone_side: Side, color: (u8, u8, u8)) -> Vec<DeviceOperation> {
     let mut cmd = CommandFactory::new();
     cmd.control_timeout(std::time::Duration::from_millis(500));
     cmd.interrupt_timeout(std::time::Duration::from_millis(500));
