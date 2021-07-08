@@ -49,8 +49,10 @@ impl SteelseriesDeviceHandle {
     }
 
     pub fn claim_interface(&mut self, iface: u8) -> SteelseriesResult<()> {
+        // std::thread::sleep(std::time::Duration::from_millis(5000));
         match self.usb_handle.claim_interface(iface) {
             Ok(()) => {
+                // std::thread::sleep(std::time::Duration::from_millis(5000));
                 self.claimed_interfaces.push(iface);
                 Ok(())
             }
@@ -61,32 +63,34 @@ impl SteelseriesDeviceHandle {
         }
     }
 
-    pub fn release_interface(&mut self, iface: u8) -> SteelseriesResult<()> {
-        match self.claimed_interfaces.iter().find(|i| **i == iface) {
-            Some(claimed_interface) => {
-                match self.usb_handle.release_interface(*claimed_interface) {
-                    Ok(_) => Ok(()),
-                    Err(e) => {
-                        OUTPUT.error(format!("Error: {}", e).as_str());
-                        return Err(SteelseriesError::ReleaseInterface(iface));
-                    }
-                }
-            }
-            None => Ok(()),
-        }
-    }
+    // pub fn release_interface(&mut self, iface: u8) -> SteelseriesResult<()> {
+    //     match self.claimed_interfaces.iter().find(|i| **i == iface) {
+    //         Some(claimed_interface) => {
+    //             match self.usb_handle.release_interface(*claimed_interface) {
+    //                 Ok(_) => Ok(()),
+    //                 Err(e) => {
+    //                     OUTPUT.error(format!("Error: {}", e).as_str());
+    //                     return Err(SteelseriesError::ReleaseInterface(iface));
+    //                 }
+    //             }
+    //         }
+    //         None => Ok(()),
+    //     }
+    // }
 
     pub fn process_commands(&self, device_ops: Vec<DeviceOperation>) -> SteelseriesResult<()> {
         for usb_comm_operation in device_ops.iter() {
             // std::thread::sleep(std::time::Duration::from_millis(0));
             match usb_comm_operation {
                 DeviceOperation::WriteControl(payload) => {
+                    let default_payload: Vec<u8> = vec![];
+                    let buf = payload.buf.as_ref().unwrap_or(&default_payload).as_slice();
                     match self.usb_handle().write_control(
                         payload.request_type,
                         payload.request,
                         payload.value,
                         payload.index,
-                        &payload.buf,
+                        buf,
                         payload.timeout,
                     ) {
                         Ok(size) => {
@@ -114,7 +118,9 @@ impl SteelseriesDeviceHandle {
                         payload.timeout,
                     ) {
                         Ok(n) => {
-                            OUTPUT.verbose(format!("Device -> Host - URB_CONTROL out ({} bytes)", n).as_str());
+                            OUTPUT.verbose(
+                                format!("Device -> Host - URB_CONTROL out ({} bytes)", n).as_str(),
+                            );
                         }
                         Err(read_error) => {
                             OUTPUT.error(format!("Device -> Host - URB_CONTROL out").as_str());
@@ -129,12 +135,16 @@ impl SteelseriesDeviceHandle {
                         std::time::Duration::from_millis(500),
                     ) {
                         Ok(n_bytes) => {
-                            OUTPUT
-                                .verbose(format!("Host -> Device - Interrupt ({} bytes)", n_bytes).as_str());
+                            OUTPUT.verbose(
+                                format!("Host -> Device - Interrupt ({} bytes)", n_bytes).as_str(),
+                            );
                         }
                         Err(interrupt_error) => {
                             // println!("{:?}", _some_error);
-                            OUTPUT.error(format!("Host -> Device - Interrupt - {}", interrupt_error).as_str());
+                            OUTPUT.error(
+                                format!("Host -> Device - Interrupt - {}", interrupt_error)
+                                    .as_str(),
+                            );
                             return Err(SteelseriesError::Usb(interrupt_error));
                         }
                     }
@@ -148,10 +158,16 @@ impl SteelseriesDeviceHandle {
                         std::time::Duration::from_millis(500),
                     ) {
                         Ok(bytes_read) => {
-                            OUTPUT.verbose(format!("Device -> Host - Interrupt IN ({} bytes)", bytes_read).as_str());
+                            OUTPUT.verbose(
+                                format!("Device -> Host - Interrupt IN ({} bytes)", bytes_read)
+                                    .as_str(),
+                            );
                         }
                         Err(interrupt_error) => {
-                            OUTPUT.error(format!("Device -> Host - Interrupt - {}", interrupt_error).as_str());
+                            OUTPUT.error(
+                                format!("Device -> Host - Interrupt - {}", interrupt_error)
+                                    .as_str(),
+                            );
                             // return Err(SteelseriesError::Usb(interrupt_error));
                             return Err(SteelseriesError::Usb(interrupt_error));
                         }
@@ -169,36 +185,9 @@ impl Drop for SteelseriesDeviceHandle {
         OUTPUT.verbose("Releasing claimed interfaces");
         let claimed_interfaces = self.claimed_interfaces.iter();
         for claimed_interface in claimed_interfaces {
-            // match self.usb_handle.release_interface(*claimed_interface) {
-            //     Ok(_) => match self.usb_handle.kernel_driver_active(*claimed_interface) {
-            //         Ok(has_kernel_driver) => {
-            //             if has_kernel_driver {
-            //                 self.usb_handle
-            //                     .attach_kernel_driver(*claimed_interface)
-            //                     .expect(
-            //                         format!(
-            //                             "Could not reattach kernel driver for interface {}",
-            //                             claimed_interface
-            //                         )
-            //                         .as_str(),
-            //                     );
-            //             }
-            //         }
-            //         Err(_e) => {
-            //             OUTPUT.warn(
-            //                 format!(
-            //                     "Could not reattach kernel driver to interface {}",
-            //                     claimed_interface
-            //                 )
-            //                 .as_str(),
-            //             );
-            //         }
-            //     },
-            //     Err(_) => (),
-            // }
             match self.usb_handle.release_interface(*claimed_interface) {
                 Ok(()) => (),
-                Err(_) => ()
+                Err(_) => (),
             }
         }
     }
