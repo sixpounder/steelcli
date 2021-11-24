@@ -28,7 +28,7 @@ pub fn list() -> SteelseriesResult<()> {
                     Ok(endpoints) => {
                         println!("{}:", "Endpoints".cyan());
                         for e in endpoints.iter() {
-                            println!("  Ͱ {:?}", e);
+                            println!("  ├ {:?}", e);
                         }
                     },
                     Err(_) => {

@@ -9,7 +9,7 @@ pub fn describe(vendor_id: u16, product_id: u16) -> SteelseriesResult<()> {
         .expect("Device not supported");
 
     for c in device.enumerate_capabilities() {
-        OUTPUT.log(format!("{} - {}", c.label, c.description).as_str());
+        OUTPUT.log(format!("{} - {}", c.name, c.description).as_str());
     }
     
     Ok(())

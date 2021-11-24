@@ -5,14 +5,14 @@ use rusb::{Context, Device, DeviceHandle, UsbContext};
 use super::DeviceOperation;
 
 pub struct DeviceCapability<'a> {
-    pub label: &'a str,
+    pub name: &'a str,
     pub description: &'a str,
 }
 
 impl<'a> From<(&'a str, &'a str)> for DeviceCapability<'a> {
     fn from(tuple: (&'a str, &'a str)) -> Self {
         DeviceCapability {
-            label: tuple.0,
+            name: tuple.0,
             description: tuple.1,
         }
     }

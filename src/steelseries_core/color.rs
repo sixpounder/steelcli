@@ -5,6 +5,20 @@ pub struct Color {
     blue: u8,
 }
 
+impl Color {
+    pub fn red(&self) -> u8 {
+        self.red
+    }
+
+    pub fn green(&self) -> u8 {
+        self.green
+    }
+
+    pub fn blue(&self) -> u8 {
+        self.blue
+    }
+}
+
 impl Into<(u8, u8, u8)> for Color {
     fn into(self) -> (u8, u8, u8) {
         (self.red, self.green, self.blue)

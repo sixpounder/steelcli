@@ -56,15 +56,21 @@ impl SteelseriesDevice for Arctis5Headphones {
     }
 
     fn change_property(&self, property: &str, value: &str) -> SteelseriesResult<()> {
-        super::OUTPUT.verbose(format!("Changing {} to {}", property, value).as_str());
-        match property {
-            "lhc" => self.set_headphone_color(Side::Left, Color::from(value)),
-            "rhc" => self.set_headphone_color(Side::Right, Color::from(value)),
-            "hc" => match self.set_headphone_color(Side::Left, Color::from(value)) {
-                Ok(_) => self.set_headphone_color(Side::Right, Color::from(value)),
-                Err(e) => Err(e),
+        let capability = self.capabilities.iter().find(|c| c.name == property);
+        match capability {
+            Some(prop) => {
+                super::OUTPUT.verbose(format!("Changing {} to {}", prop.description, value).as_str());
+                match prop.name {
+                    "lhc" => self.set_headphone_color(Side::Left, Color::from(value)),
+                    "rhc" => self.set_headphone_color(Side::Right, Color::from(value)),
+                    "hc" => match self.set_headphone_color(Side::Left, Color::from(value)) {
+                        Ok(_) => self.set_headphone_color(Side::Right, Color::from(value)),
+                        Err(e) => Err(e),
+                    },
+                    _ => Ok(()),
+                }
             },
-            _ => Ok(()),
+            None => Err(SteelseriesError::InvalidCapability)
         }
     }
 
@@ -77,7 +83,7 @@ impl SteelseriesDevice for Arctis5Headphones {
     }
 }
 
-fn generate_color_change_operations(color: (u8, u8, u8)) -> Vec<DeviceOperation> {
+fn generate_color_change_operations(color: Color) -> Vec<DeviceOperation> {
     let mut cmd = CommandFactory::new();
     cmd.control_timeout(std::time::Duration::from_millis(500));
     cmd.interrupt_timeout(std::time::Duration::from_millis(500));
@@ -90,30 +96,30 @@ fn generate_color_change_operations(color: (u8, u8, u8)) -> Vec<DeviceOperation>
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ]),
-        // cmd.build_read_control(),
+        cmd.build_read_control(),
         cmd.build_write_control(vec![
             0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ]),
-        // cmd.build_read_control(),
+        cmd.build_read_control(),
 
-        // cmd.build_read_interrupt(0x84),
+        cmd.build_read_interrupt(4),
         // cmd.build_write_interrupt_with_data(0x84, vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-        // cmd.build_write_interrupt(0x84),
+        cmd.build_write_interrupt(4),
 
         cmd.build_write_control(vec![
-            0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, color.0, color.1, color.2, 0xff, 0x32, 0xc8,
+            0x06, 0x8a, 0x42, 0x00, 0x20, 0x41, 0x00, color.red(), color.green(), color.blue(), 0xff, 0x32, 0xc8,
             0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ]),
-        // cmd.build_read_control(),
+        cmd.build_read_control(),
         cmd.build_write_control(vec![
             0x06, 0x81, 0x43, 0x01, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ]),
-        // cmd.build_read_control(),
+        cmd.build_read_control(),
 
         // cmd.build_read_interrupt(0x84),
         //cmd.build_write_interrupt(0x84),
