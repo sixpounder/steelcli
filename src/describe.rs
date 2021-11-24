@@ -1,3 +1,4 @@
+use crate::steelseries_core::{ToCode, ToDescription};
 use crate::{errors::SteelseriesResult, steelseries_core::support::DevicePool};
 use crate::OUTPUT;
 
@@ -9,7 +10,7 @@ pub fn describe(vendor_id: u16, product_id: u16) -> SteelseriesResult<()> {
         .expect("Device not supported");
 
     for c in device.enumerate_capabilities() {
-        OUTPUT.log(format!("{} - {}", c.name, c.description).as_str());
+        OUTPUT.log(format!("{} - {}", c.to_code(), c.to_description()).as_str());
     }
     
     Ok(())

@@ -1,4 +1,4 @@
-use std::{sync::Mutex};
+use std::{fmt::Display, sync::Mutex};
 use colored::*;
 
 #[derive(PartialEq, PartialOrd)]
@@ -35,7 +35,7 @@ impl Log {
         }
     }
 
-    pub fn verbose(&self, msg: &str) {
+    pub fn verbose<S: Display>(&self, msg: S) {
         if *self.level.lock().unwrap() >= LogLevel::Verbose {
             println!("{} {}", VERBOSE_SIGN, msg);
         }
