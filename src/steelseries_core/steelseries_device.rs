@@ -18,6 +18,7 @@ pub trait ToDescription {
     fn to_description(&self) -> &str ;
 }
 
+#[derive(PartialEq)]
 pub enum DeviceCapability {
     LeftHeadphoneLedColor,
     RightHeadphoneLedColor,
@@ -235,7 +236,7 @@ impl Drop for SteelseriesDeviceHandle {
 pub trait SteelseriesDevice {
     fn enumerate_capabilities(&self) -> std::slice::Iter<DeviceCapability>;
     fn get_name(&self) -> &str;
-    fn change_property(&self, property: &str, value: &str) -> SteelseriesResult<()>;
+    fn change_property(&self, property: DeviceCapability, value: &str) -> SteelseriesResult<()>;
     fn get_vendor_id(&self) -> u16;
     fn get_product_id(&self) -> u16;
     fn matches(&self, vendor_id: u16, product_id: u16) -> bool {

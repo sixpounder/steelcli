@@ -1,7 +1,7 @@
 use crate::{
     errors::*,
     steelseries_core::{
-        Color, CommandFactory, DeviceCapability, DeviceOperation, Side, SteelseriesDevice, ToCode,
+        Color, CommandFactory, DeviceCapability, DeviceOperation, Side, SteelseriesDevice,
         ToDescription,
     },
 };
@@ -66,20 +66,20 @@ impl SteelseriesDevice for Arctis5Headphones {
         "Arctis 5"
     }
 
-    fn change_property(&self, property: &str, value: &str) -> SteelseriesResult<()> {
+    fn change_property(&self, property: DeviceCapability, value: &str) -> SteelseriesResult<()> {
         let capability = self
             .capabilities
             .iter()
-            .find(|c| c.to_code() == property);
+            .find(|c| **c == property);
         match capability {
             Some(prop) => {
                 super::OUTPUT.verbose(
                     format!("Changing {} to {}", prop.to_description(), value).as_str(),
                 );
-                match prop.to_code() {
-                    "lhc" => self.set_headphone_color(Side::Left, Color::from(value)),
-                    "rhc" => self.set_headphone_color(Side::Right, Color::from(value)),
-                    "hc" => match self.set_headphone_color(Side::Left, Color::from(value)) {
+                match prop {
+                    DeviceCapability::LeftHeadphoneLedColor => self.set_headphone_color(Side::Left, Color::from(value)),
+                    DeviceCapability::RightHeadphoneLedColor => self.set_headphone_color(Side::Right, Color::from(value)),
+                    DeviceCapability::HeadphonesColor => match self.set_headphone_color(Side::Left, Color::from(value)) {
                         Ok(_) => self.set_headphone_color(Side::Right, Color::from(value)),
                         Err(e) => Err(e),
                     },
@@ -101,8 +101,8 @@ impl SteelseriesDevice for Arctis5Headphones {
 
 fn generate_color_change_operations(color: Color) -> Vec<DeviceOperation> {
     let mut command_factory = CommandFactory::new();
-    command_factory.control_timeout(std::time::Duration::from_millis(5000));
-    command_factory.interrupt_timeout(std::time::Duration::from_millis(5000));
+    command_factory.control_timeout(std::time::Duration::from_millis(500));
+    command_factory.interrupt_timeout(std::time::Duration::from_millis(500));
 
     let mut operations: Vec<DeviceOperation> = vec![
         // cmd.build_write_interrupt(4),
