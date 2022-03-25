@@ -1,18 +1,22 @@
+use lazy_static::__Deref;
+
 use super::SteelseriesDevice;
 
-const STEELSERIES_VENDOR_ID: u16 = 0x1038;
-const ARCTIS_5_PID: u16 = 0x12aa;
-
 pub struct DevicePool {
-    devices: Vec<Box<dyn SteelseriesDevice>>,
+    pub(crate) devices: Vec<Box<dyn SteelseriesDevice>>,
 }
 
 impl DevicePool {
     pub fn new() -> Self {
         let mut devices = vec![];
 
-        let arctis_five: Box<dyn SteelseriesDevice> = Box::new(crate::devices::Arctis5Headphones::new());
+        let arctis_five: Box<dyn SteelseriesDevice> =
+            Box::new(crate::devices::ArctisFiveHeadphones::new());
         devices.push(arctis_five);
+
+        let sensei_ten: Box<dyn SteelseriesDevice> =
+            Box::new(crate::devices::SenseiTenMouse::new());
+        devices.push(sensei_ten);
 
         Self { devices }
     }
@@ -27,12 +31,41 @@ impl DevicePool {
 
         ret
     }
-}
 
-pub fn supported_devices() -> Vec<(u16, u16, String)> {
-    let supported_devices: Vec<(u16, u16, String)> = vec![(
-        STEELSERIES_VENDOR_ID, ARCTIS_5_PID, String::from("Arctis 5 Headset")
-    )];
+    pub fn find_by_slug(&self, slug: &str) -> Option<&dyn SteelseriesDevice> {
+        let mut ret: Option<&dyn SteelseriesDevice> = None;
+        self.devices.iter().for_each(|f| {
+            if f.get_slug() == slug {
+                ret = Some(&**f);
+            }
+        });
 
-    supported_devices
+        ret
+    }
+
+    #[allow(dead_code)]
+    pub fn first(&self) -> Option<&dyn SteelseriesDevice> {
+        Some(self.devices[0].deref())
+    }
+
+    /**
+     * Consumes `self` and returns a new `DevicePool` filtered with supported devices
+     * that are actually connected to the host
+     */
+    pub fn sync(self) -> DevicePool {
+        let api = &crate::HIDAPI;
+        let mut connected_devices = api.device_list();
+        let mut filtered_devices: Vec<Box<dyn SteelseriesDevice>> = vec![];
+        for device in self.devices {
+            if let Some(_connected_device) = connected_devices.find(|d| {
+                d.vendor_id() == device.get_vendor_id() && d.product_id() == device.get_product_id()
+            }) {
+                filtered_devices.push(device);
+            }
+        }
+
+        DevicePool {
+            devices: filtered_devices,
+        }
+    }
 }

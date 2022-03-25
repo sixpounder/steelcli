@@ -15,3 +15,17 @@ pub fn describe(vendor_id: u16, product_id: u16) -> SteelseriesResult<()> {
     
     Ok(())
 }
+
+pub fn by_slug(slug: &str) -> SteelseriesResult<()> {
+    let pool = DevicePool::new();
+
+    let device = pool
+        .find_by_slug(slug)
+        .expect("Device not supported");
+
+    for c in device.enumerate_capabilities() {
+        OUTPUT.log(format!("{} - {}", c.to_code(), c.to_description()).as_str());
+    }
+    
+    Ok(())
+}

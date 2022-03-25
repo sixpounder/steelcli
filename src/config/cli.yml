@@ -28,13 +28,14 @@ subcommands:
         version: "1.0"
         about: Lists supported devices connected to the host
     - change:
+        version: "1.0"
         about: Changes configuration for a device
         args:
             - device:
                 short: d
                 long: device
                 value_name: DEVICE_ID
-                help: Specifies a device to manipulate. If not specified, the first device from the 'list' command OUTPUT is assumed
+                help: Specifies a device to manipulate
             - PROPERTY:
                 index: 1
                 required: true

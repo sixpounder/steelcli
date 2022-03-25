@@ -20,13 +20,7 @@
                 }
             },
             "args": [
-                "--escalate",
-                "-v",
-                "change",
-                "-d",
-                "1038:12aa",
-                "lhc",
-                "'255.0.0'"
+                "list"
             ],
             "cwd": "${workspaceFolder}"
         },

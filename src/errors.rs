@@ -1,14 +1,15 @@
 #[derive(Debug)]
 pub enum SteelseriesError {
+    NoDevice,
     Privileges,
     InvalidCapability,
     ClaimInterface(u8),
     // ReleaseInterface(u8),
-    Usb(rusb::Error),
+    Usb(hidapi::HidError),
 }
 
-impl From<rusb::Error> for SteelseriesError {
-    fn from(original: rusb::Error) -> Self {
+impl From<hidapi::HidError> for SteelseriesError {
+    fn from(original: hidapi::HidError) -> Self {
         SteelseriesError::Usb(original)
     }
 }
