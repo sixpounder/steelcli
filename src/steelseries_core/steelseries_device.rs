@@ -1,20 +1,74 @@
+use std::fmt::Display;
+
 use crate::errors::SteelseriesResult;
 use crate::{errors::SteelseriesError, OUTPUT};
 use rusb::{Context, Device, DeviceHandle, UsbContext};
 
 use super::DeviceOperation;
 
-pub struct DeviceCapability<'a> {
-    pub label: &'a str,
-    pub description: &'a str,
+pub trait FromCode {
+    fn from_code(code: &str) -> Self;
 }
 
-impl<'a> From<(&'a str, &'a str)> for DeviceCapability<'a> {
-    fn from(tuple: (&'a str, &'a str)) -> Self {
-        DeviceCapability {
-            label: tuple.0,
-            description: tuple.1,
+pub trait ToCode {
+    fn to_code(&self) -> &str;
+}
+
+pub trait ToDescription {
+    fn to_description(&self) -> &str ;
+}
+
+#[derive(PartialEq)]
+pub enum DeviceCapability {
+    LeftHeadphoneLedColor,
+    RightHeadphoneLedColor,
+    HeadphonesColor,
+    LedColor
+}
+
+impl FromCode for DeviceCapability {
+    fn from_code(code: &str) -> Self {
+        match code {
+            "lhc" => DeviceCapability::LeftHeadphoneLedColor,
+            "rhc" => DeviceCapability::RightHeadphoneLedColor,
+            "hc" => DeviceCapability::HeadphonesColor,
+            "lc" => DeviceCapability::LedColor,
+            _ => DeviceCapability::LedColor,
         }
+    }
+}
+
+impl ToCode for DeviceCapability {
+    fn to_code(&self) -> &str {
+        match self {
+            DeviceCapability::LeftHeadphoneLedColor => "lhc",
+            DeviceCapability::RightHeadphoneLedColor => "rhc",
+            DeviceCapability::HeadphonesColor => "hc",
+            DeviceCapability::LedColor => "lc",
+        }
+    }
+}
+
+impl ToDescription for DeviceCapability {
+    fn to_description(&self) -> &str  {
+        match self {
+            DeviceCapability::LeftHeadphoneLedColor => "Left headphone led color",
+            DeviceCapability::RightHeadphoneLedColor => "Right headphone led color",
+            DeviceCapability::HeadphonesColor => "Headphone leds color",
+            DeviceCapability::LedColor => "Led color",
+        }
+    }
+}
+
+impl Display for DeviceCapability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_description())
+    }
+}
+
+impl<'a> From<&'a str> for DeviceCapability {
+    fn from(code: &'a str) -> Self {
+        DeviceCapability::from_code(code)
     }
 }
 
@@ -49,10 +103,8 @@ impl SteelseriesDeviceHandle {
     }
 
     pub fn claim_interface(&mut self, iface: u8) -> SteelseriesResult<()> {
-        // std::thread::sleep(std::time::Duration::from_millis(5000));
         match self.usb_handle.claim_interface(iface) {
             Ok(()) => {
-                // std::thread::sleep(std::time::Duration::from_millis(5000));
                 self.claimed_interfaces.push(iface);
                 Ok(())
             }
@@ -63,24 +115,13 @@ impl SteelseriesDeviceHandle {
         }
     }
 
-    // pub fn release_interface(&mut self, iface: u8) -> SteelseriesResult<()> {
-    //     match self.claimed_interfaces.iter().find(|i| **i == iface) {
-    //         Some(claimed_interface) => {
-    //             match self.usb_handle.release_interface(*claimed_interface) {
-    //                 Ok(_) => Ok(()),
-    //                 Err(e) => {
-    //                     OUTPUT.error(format!("Error: {}", e).as_str());
-    //                     return Err(SteelseriesError::ReleaseInterface(iface));
-    //                 }
-    //             }
-    //         }
-    //         None => Ok(()),
-    //     }
-    // }
-
-    pub fn process_commands(&self, device_ops: Vec<DeviceOperation>) -> SteelseriesResult<()> {
+    pub fn process_commands(&self, device_ops: Vec<DeviceOperation>, delay: Option<std::time::Duration>) -> SteelseriesResult<()> {
         for usb_comm_operation in device_ops.iter() {
-            // std::thread::sleep(std::time::Duration::from_millis(0));
+            match delay.as_ref() {
+                Some(time) => std::thread::sleep(*time),
+                None => (),
+            }
+
             match usb_comm_operation {
                 DeviceOperation::WriteControl(payload) => {
                     let default_payload: Vec<u8> = vec![];
@@ -150,7 +191,6 @@ impl SteelseriesDeviceHandle {
                     }
                 }
                 DeviceOperation::ReadInterrupt(endpoint) => {
-                    // std::thread::sleep(std::time::Duration::from_millis(400));
                     let mut buf = vec![];
                     match self.usb_handle().read_interrupt(
                         *endpoint,
@@ -196,7 +236,7 @@ impl Drop for SteelseriesDeviceHandle {
 pub trait SteelseriesDevice {
     fn enumerate_capabilities(&self) -> std::slice::Iter<DeviceCapability>;
     fn get_name(&self) -> &str;
-    fn change_property(&self, property: &str, value: &str) -> SteelseriesResult<()>;
+    fn change_property(&self, property: DeviceCapability, value: &str) -> SteelseriesResult<()>;
     fn get_vendor_id(&self) -> u16;
     fn get_product_id(&self) -> u16;
     fn matches(&self, vendor_id: u16, product_id: u16) -> bool {
