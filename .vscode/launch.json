@@ -23,7 +23,7 @@
                 "change",
                 "senseiten",
                 "lc",
-                "#ff0000"
+                "olive"
             ],
             "cwd": "${workspaceFolder}"
         },

@@ -143,7 +143,8 @@ impl TryFrom<&str> for RGBGradient {
     fn try_from(raw: &str) -> Result<Self, Self::Error> {
         let hex_regex = regex::Regex::new(r"^[a-fA-F0-9]{6}$").unwrap();
         let rgb_regex = regex::Regex::new(r"^[0-9]{1,3},[0-9]{1,3},[0-9]{1,3}$").unwrap();
-        if hex_regex.is_match(raw) || rgb_regex.is_match(raw) {
+        let color_literal_regex = regex::Regex::new(r"^[a-z]+$").unwrap();
+        if hex_regex.is_match(raw) || rgb_regex.is_match(raw) || color_literal_regex.is_match(raw) {
             RGBGradient::new_with_colors(vec![Color::from(raw)])
         } else {
             Err(SteelseriesError::Conversion)

@@ -113,7 +113,9 @@ impl SteelseriesDevice for SenseiTenMouse {
                 super::OUTPUT
                     .verbose(format!("Changing {} to {}", prop.to_description(), value).as_str());
                 match prop {
-                    DeviceProperty::LedColor => self.set_logo_color(RGBGradient::try_from(value)?),
+                    DeviceProperty::LedColor => self.set_logo_color(
+                        RGBGradient::try_from(value).expect("Error parsing rgb gradient"),
+                    ),
                     _ => {
                         super::OUTPUT.verbose(format!(
                             "Property {} not supported by this device",
