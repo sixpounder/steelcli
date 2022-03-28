@@ -28,6 +28,9 @@ subcommands:
     - list:
         version: "1.0"
         about: Lists supported devices connected to the host
+    - supported:
+        version: "1.0"
+        about: Lists supported devices, even if not connected to the host
     - change:
         version: "1.0"
         about: Changes configuration for a device

@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{
-    errors::*,
-    steelseries_core::{
-        Color, DeviceProfileValue, DeviceProperty, Side, SteelseriesDevice, ToDescription,
-        STEELSERIES_VENDOR_ID,
-    },
+use crate::steelseries_core::{
+    Color, DeviceProfileValue, DeviceProperty, Side, SteelseriesDevice, Error,
+    Result, ToDescription, STEELSERIES_VENDOR_ID,
 };
 
 const ARCTIS_5_PID: u16 = 0x12aa;
@@ -27,11 +24,11 @@ impl ArctisFiveHeadphones {
                 DeviceProperty::from("rhc"),
                 DeviceProperty::from("hc"),
             ],
-            profile: HashMap::new()
+            profile: HashMap::new(),
         }
     }
 
-    pub fn set_headphone_color(&self, side: Side, color: Color) -> SteelseriesResult<()> {
+    pub fn set_headphone_color(&self, _side: Side, _color: Color) -> Result<()> {
         todo!()
     }
 }
@@ -49,7 +46,7 @@ impl SteelseriesDevice for ArctisFiveHeadphones {
         "arctis5"
     }
 
-    fn change_property(&self, property: DeviceProperty, value: &str) -> SteelseriesResult<()> {
+    fn change_property(&self, property: DeviceProperty, value: &str) -> Result<()> {
         let capability = self.capabilities.iter().find(|c| **c == property);
         match capability {
             Some(prop) => {
@@ -77,7 +74,7 @@ impl SteelseriesDevice for ArctisFiveHeadphones {
                     }
                 }
             }
-            None => Err(SteelseriesError::InvalidCapability),
+            None => Err(Error::InvalidCapability),
         }
     }
 

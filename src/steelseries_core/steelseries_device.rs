@@ -1,11 +1,9 @@
-use std::{collections::HashMap, fmt::Result};
+use std::{collections::HashMap};
 use std::fmt::Display;
 
 use hidapi::{HidError};
 
-use crate::errors::{SteelseriesError, SteelseriesResult};
-
-use super::support::DevicePool;
+use super::{Result, Error};
 
 pub trait FromCode {
     fn from_code(code: &str) -> Self;
@@ -19,6 +17,7 @@ pub trait ToDescription {
     fn to_description(&self) -> &str;
 }
 
+/// Represents a device property that can be queried and/or manipulated
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum DeviceProperty {
@@ -77,13 +76,10 @@ impl<'a> From<&'a str> for DeviceProperty {
     }
 }
 
-pub enum HidRequestType {
-    Feature,
-    Output
-}
-
+/// An handle over a single device. Tipically obtained by calling `open` on a `SteelSeriesDevice` implementor.
+/// Use to read and write data to the device.
 pub struct SteelseriesDeviceHandle {
-    info: hidapi::DeviceInfo,
+    _info: hidapi::DeviceInfo,
     pub(crate) handle: hidapi::HidDevice,
 }
 
@@ -94,22 +90,23 @@ impl SteelseriesDeviceHandle {
             .open_device(&api)
             .expect("Could not open device");
         Self {
-            info: device_info,
+            _info: device_info,
             handle: device_handle,
         }
     }
 
-    pub fn write(&self, buf: &[u8]) -> SteelseriesResult<usize> {
+    #[allow(dead_code)]
+    pub fn write(&self, buf: &[u8]) -> Result<usize> {
         match self.handle.write(buf) {
             Ok(written) => Ok(written),
-            Err(some_error) => Err(SteelseriesError::Usb(some_error))
+            Err(some_error) => Err(Error::Usb(some_error))
         }
     }
 
-    pub fn send_feature_report(&self, buf: &[u8]) -> SteelseriesResult<()> {
+    pub fn send_feature_report(&self, buf: &[u8]) -> Result<()> {
         match self.handle.send_feature_report(buf) {
             Ok(_) => Ok(()),
-            Err(some_error) => Err(SteelseriesError::Usb(some_error))
+            Err(some_error) => Err(Error::Usb(some_error))
         }
     }
 }
@@ -122,6 +119,8 @@ impl<T> From<T> for SteelseriesDeviceHandle where T: SteelseriesDevice {
     }
 }
 
+/// Each device has one or more profile specific values that need to be stored
+/// for later usage. These are the types that are storable.
 #[allow(dead_code)]
 pub enum DeviceProfileValue {
     Str(&'static str),
@@ -131,6 +130,7 @@ pub enum DeviceProfileValue {
 }
 
 impl DeviceProfileValue {
+    #[allow(dead_code)]
     pub(crate) fn as_str(&self) -> Option<&'static str> {
         if let DeviceProfileValue::Str(value) = self {
             Some(value)
@@ -164,20 +164,38 @@ impl DeviceProfileValue {
     }
 }
 
+/// A trait implemented by structures designed to represent a single device
 pub trait SteelseriesDevice {
+
+    /// Enumerates this devices capabilities and configurable properties
     fn enumerate_capabilities(&self) -> std::slice::Iter<DeviceProperty>;
+
+    /// Extended device name
     fn get_name(&self) -> &str;
+
+    /// A short name to identify the device
     fn get_slug(&self) -> &str;
-    fn change_property(&self, property: DeviceProperty, value: &str) -> SteelseriesResult<()>;
+
+    /// Changes a single property of this device. Implementation varies per device.
+    fn change_property(&self, property: DeviceProperty, value: &str) -> Result<()>;
+
+    /// The device vendor id
     fn get_vendor_id(&self) -> u16;
+
+    /// The device product id
     fn get_product_id(&self) -> u16;
+
+    /// Returns a map of profile values for this device
     fn get_profile(&self) -> Option<&HashMap<&str, DeviceProfileValue>>;
 
+    /// If `capability` is contained in the `enumerate_capabilities` iterators returns `Some(capability)`,
+    /// `None` otherwise
     fn supports_capability(&self, capability: DeviceProperty) -> Option<&DeviceProperty> {
         self.enumerate_capabilities().find(|c| **c == capability)
     }
 
-    fn open(&self) -> SteelseriesResult<SteelseriesDeviceHandle> {
+    /// Opens the device and returns an handle to it
+    fn open(&self) -> Result<SteelseriesDeviceHandle> {
         let api = &crate::HIDAPI;
         let dev = api.device_list().find(|d| {
             d.vendor_id() == self.get_vendor_id() && d.product_id() == self.get_product_id()
@@ -185,10 +203,11 @@ pub trait SteelseriesDevice {
 
         match dev {
             Some(connected_device) => Ok(SteelseriesDeviceHandle::new(connected_device.clone())),
-            None => Err(SteelseriesError::Usb(HidError::HidApiErrorEmpty)),
+            None => Err(Error::Usb(HidError::HidApiErrorEmpty)),
         }
     }
 
+    /// Gets a value from this device profile, if present
     fn get_profile_value(&self, key: &str) -> Option<&DeviceProfileValue> {
         match self.get_profile() {
             Some(settings_collection) => settings_collection.get(key),
@@ -196,6 +215,7 @@ pub trait SteelseriesDevice {
         }
     }
 
+    /// Checks if the device mathches a given `vendor_id:product_id` combination
     fn matches(&self, vendor_id: u16, product_id: u16) -> bool {
         self.get_vendor_id() == vendor_id && self.get_product_id() == product_id
     }
@@ -214,7 +234,7 @@ impl SteelseriesDevice for hidapi::DeviceInfo {
         self.get_name()
     }
 
-    fn change_property(&self, _property: DeviceProperty, _value: &str) -> SteelseriesResult<()> {
+    fn change_property(&self, _property: DeviceProperty, _value: &str) -> Result<()> {
         Ok(())
     }
 

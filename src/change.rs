@@ -1,5 +1,7 @@
-use crate::{errors::SteelseriesResult, steelseries_core::{DeviceProperty, FromCode, SteelseriesDevice}};
+use crate::steelseries_core::{
+    Result, {DeviceProperty, FromCode, SteelseriesDevice},
+};
 
-pub fn change(device: &dyn SteelseriesDevice, prop: &str, value: &str) -> SteelseriesResult<()> {
+pub fn change(device: &dyn SteelseriesDevice, prop: &str, value: &str) -> Result<()> {
     device.change_property(DeviceProperty::from_code(prop), value)
 }

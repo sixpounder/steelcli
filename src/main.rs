@@ -6,20 +6,16 @@ extern crate lazy_static;
 
 mod change;
 mod describe;
-mod device_ops;
 mod devices;
-mod errors;
 mod list;
 mod steelseries_core;
 mod utils;
-mod runner;
+// mod runner;
 
 use change::change;
 use clap::{App, ArgMatches};
-use errors::{SteelseriesError, SteelseriesResult};
-use list::list;
-use runner::RunSettings;
-use steelseries_core::{support::DevicePool, LogLevel, SteelseriesDevice};
+use list::{list, list_all};
+use steelseries_core::{support::DevicePool, LogLevel, SteelseriesDevice, Error, Result};
 
 lazy_static! {
     pub static ref OUTPUT: crate::steelseries_core::Log = crate::steelseries_core::Log::new();
@@ -29,26 +25,28 @@ lazy_static! {
     pub static ref HIDAPI: hidapi::HidApi = hidapi::HidApi::new().unwrap();
 }
 
-fn main() -> SteelseriesResult<()> {
+fn main() -> Result<()> {
     let yaml = load_yaml!("config/cli.yml");
     let mut cli = App::from_yaml(yaml);
+
+    // Preallocate a synched device pool to use later
     let device_pool = DevicePool::new().sync();
 
     // Clone "cli" to reuse it later
     let matches = cli.clone().get_matches();
 
-    let dry = std::env::vars()
-        .find(|v| v.0 == "STEELCLI_DRY" && v.1 == "1")
-        .is_some()
-        || matches.occurrences_of("dry") > 0;
+    // let dry = std::env::vars()
+    //     .find(|v| v.0 == "STEELCLI_DRY" && v.1 == "1")
+    //     .is_some()
+    //     || matches.occurrences_of("dry") > 0;
 
-    let run_settings = RunSettings {
-        dry
-    };
+    // let run_settings = RunSettings {
+    //     dry
+    // };
 
     if matches.occurrences_of("escalate") + matches.occurrences_of("e") != 0 {
         if let Err(_some_error) = sudo::escalate_if_needed() {
-            return Err(SteelseriesError::Privileges);
+            return Err(Error::Privileges);
         }
     }
 
@@ -60,11 +58,13 @@ fn main() -> SteelseriesResult<()> {
 
     if let Some(_cmd) = matches.subcommand_matches("list") {
         list(&device_pool)
+    } else if let Some(_cmd) = matches.subcommand_matches("supported") {
+        list_all()
     } else if let Some(cmd) = matches.subcommand_matches("describe") {
         if let Some(device) = device_from_args(&device_pool, cmd) {
             describe::describe(device)
         } else {
-            Err(SteelseriesError::NoDevice)
+            Err(Error::NoDevice)
         }
     } else if let Some(cmd) = matches.subcommand_matches("change") {
         let device = device_from_args(&device_pool, cmd);
@@ -76,7 +76,7 @@ fn main() -> SteelseriesResult<()> {
             }
             None => {
                 OUTPUT.error("No device specified");
-                Err(SteelseriesError::NoDevice)
+                Err(Error::NoDevice)
             }
         }
     } else {

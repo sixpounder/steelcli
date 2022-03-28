@@ -1,10 +1,9 @@
 use colored::Colorize;
 
-use crate::errors::SteelseriesResult;
-use crate::steelseries_core::{SteelseriesDevice, ToCode, ToDescription};
+use crate::steelseries_core::{Result, SteelseriesDevice, ToCode, ToDescription};
 use crate::utils;
 
-pub fn describe(device: &dyn SteelseriesDevice) -> SteelseriesResult<()> {
+pub fn describe(device: &dyn SteelseriesDevice) -> Result<()> {
     print_device_info(device);
 
     for c in device.enumerate_capabilities() {

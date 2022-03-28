@@ -1,11 +1,11 @@
 use std::{collections::HashMap, convert::TryFrom};
 
 use crate::{
-    errors::{SteelseriesError, SteelseriesResult},
     steelseries_core::{
-        Color, DeviceProfileValue, DeviceProperty, RGBGradient, RGBGradientSettings,
+        DeviceProfileValue, DeviceProperty, RGBGradient, RGBGradientSettings,
         SteelseriesDevice, ToDescription, STEELSERIES_VENDOR_ID,
     },
+    steelseries_core::{Error, Result},
 };
 
 const SENSEI_TEN_PID: u16 = 0x1832;
@@ -55,7 +55,7 @@ impl SenseiTenMouse {
         }
     }
 
-    pub fn set_logo_color(&self, value: RGBGradient) -> SteelseriesResult<()> {
+    pub fn set_logo_color(&self, value: RGBGradient) -> Result<()> {
         if let Ok(handle) = self.open() {
             let header_length = get_profile_value!(self, "rgbgradh_header_length", as_hex);
             let led_id_offsets = get_profile_value!(self, "rgbgradh_led_id_offsets", as_byte_list);
@@ -85,7 +85,7 @@ impl SenseiTenMouse {
 
             Ok(())
         } else {
-            Err(SteelseriesError::UsbComm)
+            Err(Error::UsbComm)
         }
     }
 }
@@ -107,7 +107,7 @@ impl SteelseriesDevice for SenseiTenMouse {
         &self,
         property: DeviceProperty,
         value: &str,
-    ) -> crate::errors::SteelseriesResult<()> {
+    ) -> Result<()> {
         match self.supports_capability(property) {
             Some(prop) => {
                 super::OUTPUT
@@ -125,7 +125,7 @@ impl SteelseriesDevice for SenseiTenMouse {
                     }
                 }
             }
-            None => Err(SteelseriesError::InvalidCapability),
+            None => Err(Error::InvalidCapability),
         }
     }
 
