@@ -1,7 +1,9 @@
 #[derive(Debug)]
 pub enum SteelseriesError {
+    Generic(&'static str),
     NoDevice,
     Privileges,
+    Conversion,
     InvalidCapability,
     ClaimInterface(u8),
     // ReleaseInterface(u8),

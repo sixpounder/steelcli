@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryFrom};
 
 use crate::{
     errors::{SteelseriesError, SteelseriesResult},
@@ -9,16 +9,6 @@ use crate::{
 };
 
 const SENSEI_TEN_PID: u16 = 0x1832;
-
-// GRADIENT HEADER = {
-//     "header_length": 26,       # Length of the header excuding command / LED ID
-//     "led_id_offsets": [0],     # Offset of the "led_id" fields
-//     "duration_offset": 1,      # Offset of the "duration" field
-//     "duration_length": 2,      # Length of the "duration" field (in Bytes)
-//     "repeat_offset": 17,       # Offset of the "repeat" flag
-//     "triggers_offset": 21,     # Offset of the "triggers" field (buttons mask)
-//     "color_count_offset": 25,  # Offset of the "color_count" field
-// }
 
 macro_rules! get_profile_value {
     ( $target:ident, $k:literal ) => {
@@ -44,10 +34,7 @@ impl SenseiTenMouse {
             "rgbgradh_led_id_offsets",
             DeviceProfileValue::ByteList(&[0]),
         );
-        profile.insert(
-            "rgbgradh_duration_offset",
-            DeviceProfileValue::Byte(1),
-        );
+        profile.insert("rgbgradh_duration_offset", DeviceProfileValue::Byte(1));
         profile.insert("rgbgradh_duration_length", DeviceProfileValue::Byte(2));
         profile.insert("rgbgradh_repeat_offset", DeviceProfileValue::Byte(17));
         profile.insert("rgbgradh_triggers_offset", DeviceProfileValue::Byte(21));
@@ -68,7 +55,7 @@ impl SenseiTenMouse {
         }
     }
 
-    pub fn set_logo_color(&self, value: Color) -> SteelseriesResult<()> {
+    pub fn set_logo_color(&self, value: RGBGradient) -> SteelseriesResult<()> {
         if let Ok(handle) = self.open() {
             let header_length = get_profile_value!(self, "rgbgradh_header_length", as_hex);
             let led_id_offsets = get_profile_value!(self, "rgbgradh_led_id_offsets", as_byte_list);
@@ -76,7 +63,8 @@ impl SenseiTenMouse {
             let duration_length = get_profile_value!(self, "rgbgradh_duration_length", as_byte);
             let repeat_offset = get_profile_value!(self, "rgbgradh_repeat_offset", as_byte);
             let triggers_offset = get_profile_value!(self, "rgbgradh_triggers_offset", as_byte);
-            let color_count_offset = get_profile_value!(self, "rgbgradh_color_count_offset", as_hex);
+            let color_count_offset =
+                get_profile_value!(self, "rgbgradh_color_count_offset", as_hex);
 
             let command = get_profile_value!(self, "logo_color_command", as_byte_list);
             let rgbgradient = RGBGradient::from(value);
@@ -120,13 +108,12 @@ impl SteelseriesDevice for SenseiTenMouse {
         property: DeviceProperty,
         value: &str,
     ) -> crate::errors::SteelseriesResult<()> {
-        let capability = self.capabilities.iter().find(|c| **c == property);
-        match capability {
+        match self.supports_capability(property) {
             Some(prop) => {
                 super::OUTPUT
                     .verbose(format!("Changing {} to {}", prop.to_description(), value).as_str());
                 match prop {
-                    DeviceProperty::LedColor => self.set_logo_color(Color::from(value)),
+                    DeviceProperty::LedColor => self.set_logo_color(RGBGradient::try_from(value)?),
                     _ => {
                         super::OUTPUT.verbose(format!(
                             "Property {} not supported by this device",

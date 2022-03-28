@@ -173,6 +173,10 @@ pub trait SteelseriesDevice {
     fn get_product_id(&self) -> u16;
     fn get_profile(&self) -> Option<&HashMap<&str, DeviceProfileValue>>;
 
+    fn supports_capability(&self, capability: DeviceProperty) -> Option<&DeviceProperty> {
+        self.enumerate_capabilities().find(|c| **c == capability)
+    }
+
     fn open(&self) -> SteelseriesResult<SteelseriesDeviceHandle> {
         let api = &crate::HIDAPI;
         let dev = api.device_list().find(|d| {

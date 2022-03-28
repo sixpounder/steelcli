@@ -1,25 +1,32 @@
-use std::{time::Duration, slice::Iter};
+use std::{time::Duration, slice::Iter, collections::HashMap, convert::TryFrom};
 
-// lazy_static! {
-//     pub static ref NAMED_COLORS = vec![
-//         "white":   (0xFF, 0xFF, 0xFF),
-//         "silver":  (0xC0, 0xC0, 0xC0),
-//         "gray":    (0x80, 0x80, 0x80),
-//         "black":   (0x00, 0x00, 0x00),
-//         "red":     (0xFF, 0x00, 0x00),
-//         "maroon":  (0x80, 0x00, 0x00),
-//         "yellow":  (0xFF, 0xFF, 0x00),
-//         "olive":   (0x80, 0x80, 0x00),
-//         "lime":    (0x00, 0xFF, 0x00),
-//         "green":   (0x00, 0x80, 0x00),
-//         "aqua":    (0x00, 0xFF, 0xFF),
-//         "teal":    (0x00, 0x80, 0x80),
-//         "blue":    (0x00, 0x00, 0xFF),
-//         "navy":    (0x00, 0x00, 0x80),
-//         "fuchsia": (0xFF, 0x00, 0xFF),
-//         "purple":  (0x80, 0x00, 0x80),
-//     ]
-// }
+use crate::errors::SteelseriesError;
+
+lazy_static! {
+    pub static ref NAMED_COLORS: HashMap<&'static str, Color> = {
+        let mut map = HashMap::new();
+        map.insert("white",   Color::from((0xFF, 0xFF, 0xFF)));
+        map.insert("silver",  Color::from((0xC0, 0xC0, 0xC0)));
+        map.insert("gray",    Color::from((0x80, 0x80, 0x80)));
+        map.insert("black",   Color::from((0x00, 0x00, 0x00)));
+        map.insert("red",     Color::from((0xFF, 0x00, 0x00)));
+        map.insert("maroon",  Color::from((0x80, 0x00, 0x00)));
+        map.insert("yellow",  Color::from((0xFF, 0xFF, 0x00)));
+        map.insert("olive",   Color::from((0x80, 0x80, 0x00)));
+        map.insert("lime",    Color::from((0x00, 0xFF, 0x00)));
+        map.insert("green",   Color::from((0x00, 0x80, 0x00)));
+        map.insert("aqua",    Color::from((0x00, 0xFF, 0xFF)));
+        map.insert("teal",    Color::from((0x00, 0x80, 0x80)));
+        map.insert("blue",    Color::from((0x00, 0x00, 0xFF)));
+        map.insert("navy",    Color::from((0x00, 0x00, 0x80)));
+        map.insert("fuchsia", Color::from((0xFF, 0x00, 0xFF)));
+        map.insert("purple",  Color::from((0x80, 0x00, 0x80)));
+
+        map
+    };
+}
+
+const DEFAULT_DURATION: Duration = Duration::from_secs(1);
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Color {
@@ -42,15 +49,25 @@ impl Color {
     }
 }
 
+impl From<(u8, u8, u8)> for Color {
+    fn from(values: (u8, u8, u8)) -> Self {
+        Self {
+            red: values.0,
+            green: values.1,
+            blue: values.2,
+        }
+    }
+}
+
 impl Into<(u8, u8, u8)> for Color {
     fn into(self) -> (u8, u8, u8) {
-        (self.red, self.green, self.blue)
+        (self.red(), self.green(), self.blue())
     }
 }
 
 impl Into<[u8; 3]> for Color {
     fn into(self) -> [u8; 3] {
-        [self.red, self.green, self.blue]
+        [self.red(), self.green(), self.blue()]
     }
 }
 
@@ -68,7 +85,9 @@ impl From<&str> for Color {
     fn from(s: &str) -> Self {
         let hex_regex = regex::Regex::new(r"^[a-fA-F0-9]{6}$").unwrap();
 
-        if hex_regex.is_match(s) {
+        if NAMED_COLORS.contains_key(s) {
+            NAMED_COLORS.get(s).unwrap().clone()
+        } else if hex_regex.is_match(s) {
             let hex_channels = s.replacen("#", "", 1);
             let hex_channels = hex_channels.trim();
             Self {
@@ -104,21 +123,30 @@ impl From<&str> for Color {
     }
 }
 
-pub(crate) struct ColorStop {
-    color: Color,
-    position: usize,
-}
-
 pub struct RGBGradient {
-    duration: Option<Duration>,
-    color_stops: Vec<ColorStop>,
+    duration: Duration,
+    colors: Vec<Color>,
 }
 
 impl Default for RGBGradient {
     fn default() -> Self {
         Self {
-            duration: None,
-            color_stops: vec![],
+            duration: DEFAULT_DURATION,
+            colors: vec![],
+        }
+    }
+}
+
+impl TryFrom<&str> for RGBGradient {
+    type Error = SteelseriesError;
+
+    fn try_from(raw: &str) -> Result<Self, Self::Error> {
+        let hex_regex = regex::Regex::new(r"^[a-fA-F0-9]{6}$").unwrap();
+        let rgb_regex = regex::Regex::new(r"^[0-9]{1,3},[0-9]{1,3},[0-9]{1,3}$").unwrap();
+        if hex_regex.is_match(raw) || rgb_regex.is_match(raw) {
+            RGBGradient::new_with_colors(vec![Color::from(raw)])
+        } else {
+            Err(SteelseriesError::Conversion)
         }
     }
 }
@@ -130,36 +158,26 @@ impl From<Vec<Color>> for RGBGradient {
 }
 
 impl RGBGradient {
-    pub fn new_with_colors(colors: Vec<Color>) -> Result<Self, &'static str> {
+    pub fn new_with_colors(colors: Vec<Color>) -> Result<Self, SteelseriesError> {
         if colors.len() > 14 {
-            Err("A maximum of 14 color stops can be defined in a gradient")
+            Err(SteelseriesError::Generic("A maximum of 14 color stops can be defined in a gradient"))
         } else {
-            let mut stops: Vec<ColorStop> = vec![];
-            let mut i: usize = 0;
-            for color in colors {
-                stops.push(ColorStop {
-                    color: color,
-                    position: i,
-                });
-                i += 1;
-            }
-
             Ok(Self {
-                duration: None,
-                color_stops: stops,
+                duration: DEFAULT_DURATION,
+                colors,
             })
         }
     }
 
-    pub(crate) fn iter_colors(&self) -> Iter<ColorStop> {
-        self.color_stops.iter()
+    pub(crate) fn iter_colors(&self) -> Iter<Color> {
+        self.colors.iter()
     }
 
     pub fn is_gradient(&self) -> bool {
-        self.color_stops.len() > 1
+        self.colors.len() > 1
     }
 
-    pub fn process(&self, settings: RGBGradientSettings) -> ProcessedRGBGradient {
+    pub(crate) fn process(&self, settings: RGBGradientSettings) -> ProcessedRGBGradient {
 
         // Generate header
 
@@ -172,7 +190,7 @@ impl RGBGradient {
             header[settings.repeat_offset as usize] = 0x01;
         }
 
-        header[settings.color_count_offset as usize] = self.color_stops.len() as u8;
+        header[settings.color_count_offset as usize] = self.colors.len() as u8;
 
         for led_id_offset in settings.led_id_offsets {
             header[*led_id_offset as usize] = 0x00;
@@ -182,18 +200,20 @@ impl RGBGradient {
 
         let mut body: Vec<u8> = vec![];
         
-        body.push(self.color_stops[0].color.red);
-        body.push(self.color_stops[0].color.green);
-        body.push(self.color_stops[0].color.blue);
+        body.push(self.colors[0].red);
+        body.push(self.colors[0].green);
+        body.push(self.colors[0].blue);
 
         let mut last_real_pos = 0;
+        let mut color_index = 0;
         self.iter_colors().for_each(|color| {
-            let real_pos = color.position * 255 / 100;
-            let color_bytes: [u8; 3] = color.color.clone().into();
+            let real_pos = color_index * 255 / 100;
+            let color_bytes: [u8; 3] = color.clone().into();
             let mut color_bytes: Vec<u8> = color_bytes.into();
             body.append(&mut color_bytes);
             body.push((real_pos - last_real_pos) as u8);
             last_real_pos = real_pos;
+            color_index += 1;
         });
 
         header.append(&mut body);
@@ -205,16 +225,13 @@ impl RGBGradient {
 impl From<Color> for RGBGradient {
     fn from(source: Color) -> Self {
         Self {
-            duration: None,
-            color_stops: vec![ColorStop {
-                color: source,
-                position: 0,
-            }],
+            duration: DEFAULT_DURATION,
+            colors: vec![source],
         }
     }
 }
 
-pub struct RGBGradientSettings<'a> {
+pub(crate) struct RGBGradientSettings<'a> {
     pub(crate) header_length: u16,
     pub(crate) led_id_offsets: &'a [u8],
     pub(crate) duration_offset: u8,
