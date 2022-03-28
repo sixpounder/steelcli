@@ -66,7 +66,9 @@ impl From<&[u8]> for Color {
 
 impl From<&str> for Color {
     fn from(s: &str) -> Self {
-        if s.starts_with("#") && s.len() == 7 {
+        let hex_regex = regex::Regex::new(r"^[a-fA-F0-9]{6}$").unwrap();
+
+        if hex_regex.is_match(s) {
             let hex_channels = s.replacen("#", "", 1);
             let hex_channels = hex_channels.trim();
             Self {
