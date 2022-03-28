@@ -1,8 +1,19 @@
 [package]
 name = "steelseries-cli"
 version = "0.1.0"
-authors = ["sixpounder"]
-edition = "2018"
+authors = ["Andrea Coronese <sixpounder@protonmail.com>"]
+edition = "2021"
+readme = "README.md"
+license = "GPL-2.0"
+description = "A CLI frontend to SteelSeries devices"
+homepage = "https://github.com/sixpounder/steelcli"
+repository = "https://github.com/sixpounder/steelcli"
+categories = ["command-line-utilities"]
+keywords = [
+    "usb",
+    "steelseries",
+    "devices"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
