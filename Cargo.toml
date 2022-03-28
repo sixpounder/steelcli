@@ -1,5 +1,5 @@
 [package]
-name = "steelseries-cli"
+name = "steelcli"
 version = "0.1.0"
 authors = ["Andrea Coronese <sixpounder@protonmail.com>"]
 edition = "2021"
