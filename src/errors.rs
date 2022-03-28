@@ -6,6 +6,7 @@ pub enum SteelseriesError {
     ClaimInterface(u8),
     // ReleaseInterface(u8),
     Usb(hidapi::HidError),
+    UsbComm
 }
 
 impl From<hidapi::HidError> for SteelseriesError {

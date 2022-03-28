@@ -23,6 +23,7 @@ subcommands:
             - device:
                 index: 1
                 required: true
+                value_name: device,
                 help: Specifies a device to inspect
     - list:
         version: "1.0"
@@ -32,17 +33,17 @@ subcommands:
         about: Changes configuration for a device
         args:
             - device:
-                short: d
-                long: device
-                value_name: DEVICE_ID
+                index: 1
+                required: true
+                value_name: device
                 help: Specifies a device to manipulate
             - PROPERTY:
-                index: 1
+                index: 2
                 required: true
                 value_name: PROPERTY
                 help: Specifies what property to manipulate (eg. a led color). Properties support varies per device, use the 'describe' command to inspect a single device for supported properties
             - VALUE:
-                index: 2
+                index: 3
                 required: true
                 value_name: VALUE
                 help: The property value to set

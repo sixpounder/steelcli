@@ -12,19 +12,17 @@ mod errors;
 mod list;
 mod steelseries_core;
 mod utils;
+mod runner;
 
 use change::change;
 use clap::{App, ArgMatches};
 use errors::{SteelseriesError, SteelseriesResult};
 use list::list;
+use runner::RunSettings;
 use steelseries_core::{support::DevicePool, LogLevel, SteelseriesDevice};
 
 lazy_static! {
-    #[allow(non_upper_case_globals)]
-    pub static ref OUTPUT: crate::steelseries_core::Log = {
-        let l = crate::steelseries_core::Log::new();
-        l
-    };
+    pub static ref OUTPUT: crate::steelseries_core::Log = crate::steelseries_core::Log::new();
 }
 
 lazy_static! {
@@ -39,6 +37,15 @@ fn main() -> SteelseriesResult<()> {
     // Clone "cli" to reuse it later
     let matches = cli.clone().get_matches();
 
+    let dry = std::env::vars()
+        .find(|v| v.0 == "STEELCLI_DRY" && v.1 == "1")
+        .is_some()
+        || matches.occurrences_of("dry") > 0;
+
+    let run_settings = RunSettings {
+        dry
+    };
+
     if matches.occurrences_of("escalate") + matches.occurrences_of("e") != 0 {
         if let Err(_some_error) = sudo::escalate_if_needed() {
             return Err(SteelseriesError::Privileges);
@@ -52,13 +59,12 @@ fn main() -> SteelseriesResult<()> {
     }
 
     if let Some(_cmd) = matches.subcommand_matches("list") {
-        list()
+        list(&device_pool)
     } else if let Some(cmd) = matches.subcommand_matches("describe") {
-        let device = utils::parse_device_id(cmd.value_of("device").unwrap_or("0:0"));
-        if device != (0, 0) {
-            describe::describe(device.0, device.1)
+        if let Some(device) = device_from_args(&device_pool, cmd) {
+            describe::describe(device)
         } else {
-            describe::by_slug(cmd.value_of("device").unwrap_or(""))
+            Err(SteelseriesError::NoDevice)
         }
     } else if let Some(cmd) = matches.subcommand_matches("change") {
         let device = device_from_args(&device_pool, cmd);
@@ -67,7 +73,7 @@ fn main() -> SteelseriesResult<()> {
                 let prop = cmd.value_of("PROPERTY").unwrap_or("");
                 let value = cmd.value_of("VALUE").unwrap_or("");
                 change(device, prop, value)
-            },
+            }
             None => {
                 OUTPUT.error("No device specified");
                 Err(SteelseriesError::NoDevice)
@@ -79,26 +85,28 @@ fn main() -> SteelseriesResult<()> {
     }
 }
 
-fn device_from_args<'a>(device_pool: &'a DevicePool, cmd: &'a ArgMatches) -> Option<&'a dyn SteelseriesDevice> {
+fn device_from_args<'a>(
+    device_pool: &'a DevicePool,
+    cmd: &'a ArgMatches,
+) -> Option<&'a dyn SteelseriesDevice> {
     let device_spec_arg = cmd.value_of("device");
     match device_spec_arg {
         Some(device_spec) => {
-            let device;
             if device_spec.contains(":") {
                 let parsed = utils::parse_device_id(cmd.value_of("device").unwrap_or("0:0"));
-                device = device_pool
-                    .find_one(parsed.0, parsed.1)
-                    .expect("No supported device found");
+                if let Some(device) = device_pool.find_one(parsed.0, parsed.1) {
+                    Some(device)
+                } else {
+                    None
+                }
             } else {
-                device = device_pool
-                    .find_by_slug(device_spec)
-                    .expect("No supported device found");
+                if let Some(device) = device_pool.find_by_slug(device_spec) {
+                    Some(device)
+                } else {
+                    None
+                }
             }
-
-            Some(device)
         }
-        None => {
-            None
-        }
+        None => None,
     }
 }

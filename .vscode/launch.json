@@ -20,7 +20,10 @@
                 }
             },
             "args": [
-                "list"
+                "change",
+                "senseiten",
+                "lc",
+                "#ff0000"
             ],
             "cwd": "${workspaceFolder}"
         },

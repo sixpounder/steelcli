@@ -1,31 +1,34 @@
-use crate::steelseries_core::{ToCode, ToDescription};
-use crate::{errors::SteelseriesResult, steelseries_core::support::DevicePool};
-use crate::OUTPUT;
+use colored::Colorize;
 
-pub fn describe(vendor_id: u16, product_id: u16) -> SteelseriesResult<()> {
-    let pool = DevicePool::new();
+use crate::errors::SteelseriesResult;
+use crate::steelseries_core::{SteelseriesDevice, ToCode, ToDescription};
+use crate::utils;
 
-    let device = pool
-        .find_one(vendor_id, product_id)
-        .expect("Device not supported");
+pub fn describe(device: &dyn SteelseriesDevice) -> SteelseriesResult<()> {
+    print_device_info(device);
 
     for c in device.enumerate_capabilities() {
-        OUTPUT.log(format!("{} - {}", c.to_code(), c.to_description()).as_str());
+        println!("  Attributes:");
+        println!("    {}\t{}", c.to_code().bold(), c.to_description());
     }
-    
+
     Ok(())
 }
 
-pub fn by_slug(slug: &str) -> SteelseriesResult<()> {
-    let pool = DevicePool::new();
+pub(crate) fn print_device_info(handle: &dyn SteelseriesDevice) {
+    println!("{}", handle.get_name().cyan().bold());
 
-    let device = pool
-        .find_by_slug(slug)
-        .expect("Device not supported");
+    println!("  {}: {}", "Nick", handle.get_slug());
 
-    for c in device.enumerate_capabilities() {
-        OUTPUT.log(format!("{} - {}", c.to_code(), c.to_description()).as_str());
-    }
-    
-    Ok(())
+    println!(
+        "  {}: {}",
+        "Vendor ID",
+        utils::format_radix(handle.get_vendor_id() as u32, 16)
+    );
+
+    println!(
+        "  {}: {}",
+        "Device ID",
+        utils::format_radix(handle.get_product_id() as u32, 16)
+    );
 }

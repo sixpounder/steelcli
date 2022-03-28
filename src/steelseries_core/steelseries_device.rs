@@ -1,9 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Result};
 use std::fmt::Display;
 
 use hidapi::{HidError};
 
 use crate::errors::{SteelseriesError, SteelseriesResult};
+
+use super::support::DevicePool;
 
 pub trait FromCode {
     fn from_code(code: &str) -> Self;
@@ -75,6 +77,11 @@ impl<'a> From<&'a str> for DeviceProperty {
     }
 }
 
+pub enum HidRequestType {
+    Feature,
+    Output
+}
+
 pub struct SteelseriesDeviceHandle {
     info: hidapi::DeviceInfo,
     pub(crate) handle: hidapi::HidDevice,
@@ -89,6 +96,20 @@ impl SteelseriesDeviceHandle {
         Self {
             info: device_info,
             handle: device_handle,
+        }
+    }
+
+    pub fn write(&self, buf: &[u8]) -> SteelseriesResult<usize> {
+        match self.handle.write(buf) {
+            Ok(written) => Ok(written),
+            Err(some_error) => Err(SteelseriesError::Usb(some_error))
+        }
+    }
+
+    pub fn send_feature_report(&self, buf: &[u8]) -> SteelseriesResult<()> {
+        match self.handle.send_feature_report(buf) {
+            Ok(_) => Ok(()),
+            Err(some_error) => Err(SteelseriesError::Usb(some_error))
         }
     }
 }
@@ -109,6 +130,40 @@ pub enum DeviceProfileValue {
     ByteList(&'static [u8]),
 }
 
+impl DeviceProfileValue {
+    pub(crate) fn as_str(&self) -> Option<&'static str> {
+        if let DeviceProfileValue::Str(value) = self {
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn as_byte(&self) -> Option<&u8> {
+        if let DeviceProfileValue::Byte(value) = self {
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn as_hex(&self) -> Option<&u16> {
+        if let DeviceProfileValue::Hex(value) = self {
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn as_byte_list(&self) -> Option<&[u8]> {
+        if let DeviceProfileValue::ByteList(value) = self {
+            Some(value)
+        } else {
+            None
+        }
+    }
+}
+
 pub trait SteelseriesDevice {
     fn enumerate_capabilities(&self) -> std::slice::Iter<DeviceProperty>;
     fn get_name(&self) -> &str;
@@ -118,7 +173,7 @@ pub trait SteelseriesDevice {
     fn get_product_id(&self) -> u16;
     fn get_profile(&self) -> Option<&HashMap<&str, DeviceProfileValue>>;
 
-    fn open(&self) -> Result<SteelseriesDeviceHandle, SteelseriesError> {
+    fn open(&self) -> SteelseriesResult<SteelseriesDeviceHandle> {
         let api = &crate::HIDAPI;
         let dev = api.device_list().find(|d| {
             d.vendor_id() == self.get_vendor_id() && d.product_id() == self.get_product_id()

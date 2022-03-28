@@ -1,8 +1,9 @@
+use super::SteelseriesDevice;
+use crate::HIDAPI;
 use lazy_static::__Deref;
 
-use super::SteelseriesDevice;
-
 pub struct DevicePool {
+    api: &'static HIDAPI,
     pub(crate) devices: Vec<Box<dyn SteelseriesDevice>>,
 }
 
@@ -18,7 +19,10 @@ impl DevicePool {
             Box::new(crate::devices::SenseiTenMouse::new());
         devices.push(sensei_ten);
 
-        Self { devices }
+        Self {
+            api: &HIDAPI,
+            devices,
+        }
     }
 
     pub fn find_one(&self, vendor_id: u16, product_id: u16) -> Option<&dyn SteelseriesDevice> {
@@ -53,18 +57,30 @@ impl DevicePool {
      * that are actually connected to the host
      */
     pub fn sync(self) -> DevicePool {
-        let api = &crate::HIDAPI;
-        let mut connected_devices = api.device_list();
+        let connected_devices: Vec<&hidapi::DeviceInfo> = self.api.device_list().collect();
         let mut filtered_devices: Vec<Box<dyn SteelseriesDevice>> = vec![];
+        crate::OUTPUT.verbose(format!("{} device(s) in supported pool", self.devices.len()));
+
         for device in self.devices {
-            if let Some(_connected_device) = connected_devices.find(|d| {
+            crate::OUTPUT.verbose(format!(
+                "Searching for connected device {}:{}",
+                crate::utils::format_radix(device.get_vendor_id() as u32, 16),
+                crate::utils::format_radix(device.get_product_id() as u32, 16),
+            ));
+            if let Some(connected_device) = connected_devices.iter().find(|d| {
                 d.vendor_id() == device.get_vendor_id() && d.product_id() == device.get_product_id()
             }) {
+                crate::OUTPUT.verbose(format!(
+                    "Found connected device {}:{}",
+                    crate::utils::format_radix(connected_device.get_vendor_id() as u32, 16),
+                    crate::utils::format_radix(connected_device.get_product_id() as u32, 16),
+                ));
                 filtered_devices.push(device);
             }
         }
 
         DevicePool {
+            api: &HIDAPI,
             devices: filtered_devices,
         }
     }
