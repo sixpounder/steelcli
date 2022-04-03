@@ -3,21 +3,12 @@ use std::{collections::HashMap, convert::TryFrom};
 use crate::{
     steelseries_core::{
         DeviceProfileValue, DeviceProperty, RGBGradient, RGBGradientSettings,
-        SteelseriesDevice, ToDescription, STEELSERIES_VENDOR_ID,
+        SteelseriesDevice, ToDescription, STEELSERIES_VENDOR_ID, TaskOptions,
     },
-    steelseries_core::{Error, Result},
+    steelseries_core::{Error, Result}, get_profile_value,
 };
 
 const SENSEI_TEN_PID: u16 = 0x1832;
-
-macro_rules! get_profile_value {
-    ( $target:ident, $k:literal ) => {
-        $target.get_profile_value($k).unwrap()
-    };
-    ( $target:ident, $k:literal, $t:tt ) => {
-        $target.get_profile_value($k).unwrap().$t().unwrap()
-    };
-}
 
 pub struct SenseiTenMouse {
     vendor_id: u16,
@@ -55,7 +46,7 @@ impl SenseiTenMouse {
         }
     }
 
-    pub fn set_logo_color(&self, value: RGBGradient) -> Result<()> {
+    pub fn set_logo_color(&self, value: RGBGradient, options: &TaskOptions) -> Result<()> {
         if let Ok(handle) = self.open() {
             let header_length = get_profile_value!(self, "rgbgradh_header_length", as_hex);
             let led_id_offsets = get_profile_value!(self, "rgbgradh_led_id_offsets", as_byte_list);
@@ -67,6 +58,7 @@ impl SenseiTenMouse {
                 get_profile_value!(self, "rgbgradh_color_count_offset", as_hex);
 
             let command = get_profile_value!(self, "logo_color_command", as_byte_list);
+            let save_command = get_profile_value!(self, "save_command", as_byte_list);
             let rgbgradient = RGBGradient::from(value);
 
             let processed = rgbgradient.process(RGBGradientSettings {
@@ -81,11 +73,16 @@ impl SenseiTenMouse {
 
             let merged_command = [command, processed.as_slice()].concat();
 
-            handle.send_feature_report(merged_command.as_slice())?;
+            if !options.dry {
+                handle.send_feature_report(merged_command.as_slice())?;
+                if options.save {
+                    handle.write(save_command)?;
+                }
+            }
 
             Ok(())
         } else {
-            Err(Error::UsbComm)
+            Err(Error::OpenDevice)
         }
     }
 }
@@ -107,6 +104,7 @@ impl SteelseriesDevice for SenseiTenMouse {
         &self,
         property: DeviceProperty,
         value: &str,
+        options: &TaskOptions
     ) -> Result<()> {
         match self.supports_capability(property) {
             Some(prop) => {
@@ -115,6 +113,7 @@ impl SteelseriesDevice for SenseiTenMouse {
                 match prop {
                     DeviceProperty::LedColor => self.set_logo_color(
                         RGBGradient::try_from(value).expect("Error parsing rgb gradient"),
+                        options
                     ),
                     _ => {
                         super::OUTPUT.verbose(format!(

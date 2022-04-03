@@ -7,6 +7,10 @@ args:
         long: timeout
         short: t
         help: The maximum time to wait (in milliseconds) for each response from the device
+    - dry:
+        long: dry
+        short: d
+        help: Executes a dry run, meaning no data will effecively be written to any device
     - verbose:
         long: verbose
         short: v
@@ -35,6 +39,10 @@ subcommands:
         version: "1.0"
         about: Changes configuration for a device
         args:
+            - save:
+                long: save
+                short: s
+                help: Saves edits to the device internal memory
             - device:
                 index: 1
                 required: true

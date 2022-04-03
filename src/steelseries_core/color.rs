@@ -20,6 +20,7 @@ lazy_static! {
         map.insert("navy", Color::from((0x00, 0x00, 0x80)));
         map.insert("fuchsia", Color::from((0xFF, 0x00, 0xFF)));
         map.insert("purple", Color::from((0x80, 0x00, 0x80)));
+        map.insert("orange", Color::from((0xCC, 0x3B, 0x02)));
 
         map
     };

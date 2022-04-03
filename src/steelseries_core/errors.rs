@@ -3,6 +3,7 @@
 pub enum Error {
     Generic(&'static str),
     NoDevice,
+    OpenDevice,
     Privileges,
     Conversion,
     InvalidCapability,

@@ -11,18 +11,18 @@
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=steelseries-cli",
-                    "--package=steelseries-cli"
+                    "--bin=steelcli",
+                    "--package=steelcli"
                 ],
                 "filter": {
-                    "name": "steelseries-cli",
+                    "name": "steelcli",
                     "kind": "bin"
                 }
             },
             "args": [
                 "change",
-                "senseiten",
-                "lc",
+                "arctis5",
+                "lhc",
                 "olive"
             ],
             "cwd": "${workspaceFolder}"

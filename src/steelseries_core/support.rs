@@ -11,9 +11,9 @@ impl DevicePool {
     pub fn new() -> Self {
         let mut devices = vec![];
 
-        // let arctis_five: Box<dyn SteelseriesDevice> =
-        //     Box::new(crate::devices::ArctisFiveHeadphones::new());
-        // devices.push(arctis_five);
+        let arctis_five: Box<dyn SteelseriesDevice> =
+            Box::new(crate::devices::ArctisFiveHeadphones::new());
+        devices.push(arctis_five);
 
         let sensei_ten: Box<dyn SteelseriesDevice> =
             Box::new(crate::devices::SenseiTenMouse::new());

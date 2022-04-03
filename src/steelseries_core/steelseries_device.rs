@@ -1,9 +1,14 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 use std::fmt::Display;
 
-use hidapi::{HidError};
+use hidapi::HidError;
 
-use super::{Result, Error};
+use super::{Error, Result};
+
+pub struct TaskOptions {
+    pub save: bool,
+    pub dry: bool,
+}
 
 pub trait FromCode {
     fn from_code(code: &str) -> Self;
@@ -84,14 +89,15 @@ pub struct SteelseriesDeviceHandle {
 }
 
 impl SteelseriesDeviceHandle {
-    pub fn new(device_info: hidapi::DeviceInfo) -> Self {
+    pub fn new(device_info: hidapi::DeviceInfo) -> Result<Self> {
         let api = &crate::HIDAPI;
-        let device_handle = device_info
-            .open_device(&api)
-            .expect("Could not open device");
-        Self {
-            _info: device_info,
-            handle: device_handle,
+        if let Ok(device_handle) = device_info.open_device(&api) {
+            Ok(Self {
+                _info: device_info,
+                handle: device_handle,
+            })
+        } else {
+            Err(Error::UsbComm)
         }
     }
 
@@ -99,22 +105,29 @@ impl SteelseriesDeviceHandle {
     pub fn write(&self, buf: &[u8]) -> Result<usize> {
         match self.handle.write(buf) {
             Ok(written) => Ok(written),
-            Err(some_error) => Err(Error::Usb(some_error))
+            Err(some_error) => Err(Error::Usb(some_error)),
         }
     }
 
     pub fn send_feature_report(&self, buf: &[u8]) -> Result<()> {
         match self.handle.send_feature_report(buf) {
             Ok(_) => Ok(()),
-            Err(some_error) => Err(Error::Usb(some_error))
+            Err(some_error) => Err(Error::Usb(some_error)),
         }
     }
 }
 
-impl<T> From<T> for SteelseriesDeviceHandle where T: SteelseriesDevice {
+impl<T> From<T> for SteelseriesDeviceHandle
+where
+    T: SteelseriesDevice,
+{
     fn from(source: T) -> Self {
         let api = &crate::HIDAPI;
-        let device_info = api.device_list().find(|d| source.matches(d.vendor_id(), d.product_id())).unwrap().clone();
+        let device_info = api
+            .device_list()
+            .find(|d| source.matches(d.vendor_id(), d.product_id()))
+            .unwrap()
+            .clone();
         device_info.open().unwrap()
     }
 }
@@ -166,7 +179,6 @@ impl DeviceProfileValue {
 
 /// A trait implemented by structures designed to represent a single device
 pub trait SteelseriesDevice {
-
     /// Enumerates this devices capabilities and configurable properties
     fn enumerate_capabilities(&self) -> std::slice::Iter<DeviceProperty>;
 
@@ -177,7 +189,12 @@ pub trait SteelseriesDevice {
     fn get_slug(&self) -> &str;
 
     /// Changes a single property of this device. Implementation varies per device.
-    fn change_property(&self, property: DeviceProperty, value: &str) -> Result<()>;
+    fn change_property(
+        &self,
+        property: DeviceProperty,
+        value: &str,
+        options: &TaskOptions,
+    ) -> Result<()>;
 
     /// The device vendor id
     fn get_vendor_id(&self) -> u16;
@@ -202,7 +219,7 @@ pub trait SteelseriesDevice {
         });
 
         match dev {
-            Some(connected_device) => Ok(SteelseriesDeviceHandle::new(connected_device.clone())),
+            Some(connected_device) => SteelseriesDeviceHandle::new(connected_device.clone()),
             None => Err(Error::Usb(HidError::HidApiErrorEmpty)),
         }
     }
@@ -234,7 +251,12 @@ impl SteelseriesDevice for hidapi::DeviceInfo {
         self.get_name()
     }
 
-    fn change_property(&self, _property: DeviceProperty, _value: &str) -> Result<()> {
+    fn change_property(
+        &self,
+        _property: DeviceProperty,
+        _value: &str,
+        _options: &TaskOptions,
+    ) -> Result<()> {
         Ok(())
     }
 

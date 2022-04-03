@@ -15,7 +15,7 @@ mod utils;
 use change::change;
 use clap::{App, ArgMatches};
 use list::{list, list_all};
-use steelseries_core::{support::DevicePool, LogLevel, SteelseriesDevice, Error, Result};
+use steelseries_core::{support::DevicePool, LogLevel, SteelseriesDevice, Error, Result, TaskOptions};
 
 lazy_static! {
     pub static ref OUTPUT: crate::steelseries_core::Log = crate::steelseries_core::Log::new();
@@ -35,14 +35,10 @@ fn main() -> Result<()> {
     // Clone "cli" to reuse it later
     let matches = cli.clone().get_matches();
 
-    // let dry = std::env::vars()
-    //     .find(|v| v.0 == "STEELCLI_DRY" && v.1 == "1")
-    //     .is_some()
-    //     || matches.occurrences_of("dry") > 0;
-
-    // let run_settings = RunSettings {
-    //     dry
-    // };
+    let dry = std::env::vars()
+        .find(|v| v.0 == "STEELCLI_DRY" && v.1 == "1")
+        .is_some()
+        || matches.occurrences_of("dry") != 0;
 
     if matches.occurrences_of("escalate") + matches.occurrences_of("e") != 0 {
         if let Err(_some_error) = sudo::escalate_if_needed() {
@@ -68,11 +64,16 @@ fn main() -> Result<()> {
         }
     } else if let Some(cmd) = matches.subcommand_matches("change") {
         let device = device_from_args(&device_pool, cmd);
+        let options = TaskOptions {
+            dry,
+            save: matches.occurrences_of("save") != 0
+        };
+
         match device {
             Some(device) => {
                 let prop = cmd.value_of("PROPERTY").unwrap_or("");
                 let value = cmd.value_of("VALUE").unwrap_or("");
-                change(device, prop, value)
+                change(device, prop, value, &options)
             }
             None => {
                 OUTPUT.error("No device specified");
